@@ -243,21 +243,23 @@ current row: `appearance.sidebar.row_style` (`bar`, `marker`, `underline`,
 `plain`, `rule`, `pill`, `icon`). The space between its sections:
 `appearance.sidebar.density` (`normal`, `roomy`).
 
-The dock's `windows` component can also list every ordinary pane in the
-current workspace rather than only minimized panes. Set
-`[dock.windows] show = "all"`. The window entries use independent
-`style = "pill"` (default) or `style = "flat"` and the same `separator`,
-`separator_fg`, `active_fg/bg/bold/underline`,
-`inactive_fg/bg/bold`, and `caps` keys as `[dock.tabs]`. An unset
-inactive flat background has no fill, while the focused pane uses the theme
-accent by default. `format` supports `{index}`, `{title}` and `{cwd}`
-just as the pane title formatter does. Empty format keeps the historic
-number:title label. `grouped = true` (off by default) forms a contiguous
-window strip with either style. In a grouped strip `caps = true` draws one
-pair of outer ends instead of per-entry caps; `separator` works in either
-style regardless of grouping, with `separator = ""` adding no gap. Pill cap glyphs follow `appearance.dock_pill_caps`.
-Clicking focuses or restores the entry. With no
-`[dock.windows]` table, minimized entries keep their existing appearance.
+The dock's `windows` component can list all ordinary panes in the
+current workspace via `[dock.windows] show = "all"` (default: minimized
+only). It accepts `style = "pill"|"flat"`, `grouped = true|false`,
+`format` (`{index}`, `{title}`, `{cwd}`), `separator`, active/inactive
+foreground, background, bold, underline, plus `minimized_fg` and
+`minimized_bg`. The `{cwd}` placeholder prints just the directory name,
+not its full path. Visible unfocused windows use normal text; minimized
+entries are dim by default, with independent colors.
+
+Pill windows have rounded ends when `appearance.dock_pill_caps` is enabled:
+each entry gets caps if ungrouped, only the group ends if grouped. Flat
+windows have no caps; ungrouped flat entries have no automatic padding,
+so `separator = ""` joins labels. Grouped flat entries use a shared panel
+background and outer padding. There is no `[dock.windows] caps` option;
+the `[dock.tabs]` caps setting remains independent. Clicking focuses or
+restores a window. With no `[dock.windows]` table the historical minimized
+dock remains unchanged.
 
 The dock's workspace tabs take two composition knobs of their own:
 `dock_workspace_tab_format` is the format string each tab prints, and
