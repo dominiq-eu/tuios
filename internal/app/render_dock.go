@@ -229,8 +229,13 @@ func dockTabGapText(t *config.DockTabsConfig, pal overlay.Palette) string {
 // groupedDockWindowSegment renders one clickable entry without individual caps.
 // Leading padding is part of the entry; gaps and the final padding are managed
 // by the strip, not the tab painter.
-func groupedDockWindowSegment(label string, active bool, t *config.DockTabsConfig, pal overlay.Palette) (string, color.Color) {
-	content := " " + label
+func groupedDockWindowSegment(label string, first, active bool, t *config.DockTabsConfig, pal overlay.Palette) (string, color.Color) {
+	content := label
+	if first {
+		// Leading padding belongs to the group, not to every entry.
+		// An empty separator therefore adds zero columns between labels.
+		content = " " + label
+	}
 	if t.Flat() {
 		return flatTabBodyContent(content, active, false, t, pal, nil)
 	}
@@ -439,7 +444,7 @@ func (m *OS) renderDockString() (string, int) {
 					}
 					var ground color.Color
 					chunk, ground = groupedDockWindowSegment(strings.TrimSpace(dockItem.Label),
-						windowIndex == m.FocusedWindow, &style, pal)
+						itemNumber == 1, windowIndex == m.FocusedWindow, &style, pal)
 					if itemNumber == 1 && cfg.Caps {
 						chunk = groupedDockWindowCap(m.Settings.GetDockWorkspaceCapLeft(), ground, pal) + chunk
 					}
