@@ -1065,7 +1065,7 @@ func (m *OS) dockWindowGroupChrome() int {
 		return 0
 	}
 	n := 1 // Trailing space after the final visible window
-	if cfg.Caps {
+	if !cfg.TabStyle().Flat() {
 		n += lipgloss.Width(m.Settings.GetDockWorkspaceCapLeft())
 		n += lipgloss.Width(m.Settings.GetDockWorkspaceCapRight())
 	}
@@ -1131,6 +1131,10 @@ func (m *OS) getDockItems() []DockItem {
 				if number == 1 {
 					width++
 				}
+			} else if style.Flat() {
+				// Flat window entries are text, with no forced inner pad.
+				// Thus separator="" genuinely makes adjacent labels touch.
+				width = lipgloss.Width(strings.TrimSpace(label))
 			} else {
 				width = m.dockTabWidth(&style, strings.TrimSpace(label))
 			}
