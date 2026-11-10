@@ -12,13 +12,14 @@ import (
 // boundary: clicking a visible window focuses it; clicking a minimized one
 // restores it, without requiring knowledge of either window's screen box.
 func TestDockWindowsClickFocusesOrRestores(t *testing.T) {
+	separator := " "
 	cfg := config.DefaultConfig()
 	cfg.Dock.Windows = config.DockWindowsConfig{
 		Show: config.DockWindowsShowAll,
 		Grouped: true,
 		Style: config.DockTabStylePill,
 		Format: "{index}",
-		Separator: " ",
+		Separator: &separator,
 	}
 	o := app.NewOS(app.OSOptions{
 		UserConfig:      cfg,
