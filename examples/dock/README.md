@@ -115,7 +115,9 @@ existing dock behavior. To turn it into a window list for the current workspace:
 ```toml
 [dock.windows]
 show             = "all"       # minimized (default) | all
-style            = "flat"      # flat (default for configured windows) | pill
+style            = "pill"      # pill (default) | flat
+format           = "{index}: {title}"   # also supports {cwd}
+# separator only affects flat style
 separator        = " | "
 active_bg        = "accent"
 active_bold      = true
@@ -124,11 +126,16 @@ caps             = false
 ```
 
 The styling keys follow the existing `[dock.tabs]` vocabulary, but the
-configurations are independent. Supported keys are `style`, `separator`,
+configurations are independent. Supported keys are `show`, `format`, `style`, `separator`,
 `separator_fg`, `active_fg`, `active_bg`, `active_bold`,
 `active_underline`, `inactive_fg`, `inactive_bg`,
 `inactive_bold`, and `caps`. Colours follow the theme; an unset
-inactive background in flat style has no fill.
+inactive background in flat style has no fill. The pill style uses the theme
+accent for the focused pane by default. `format` accepts `{index}` (entry
+number), `{title}` (custom pane name, otherwise terminal title), and `{cwd}`
+(pane working directory). Empty format keeps the historic numeric prefix.
+Rounded caps in pill style also follow `[appearance] dock_pill_caps = true`;
+`caps` applies to flat entries only.
 
 The window list shows visible and minimized panes from the current workspace,
 excluding scratch panes and popups. Clicking a visible entry focuses it;
