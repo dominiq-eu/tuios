@@ -1051,7 +1051,7 @@ func (m *OS) dockWindowItemGap() int {
 		// Unlike workspace tabs, configured window entries honour even an
 		// explicitly empty separator. Their tab padding is measured within
 		// each entry, never counted as an inter-entry gap.
-		return lipgloss.Width(m.dockWindowsConfig().Separator)
+		return lipgloss.Width(m.dockWindowsConfig().SeparatorText())
 	}
 	// No [dock.windows] table: retain the historical minimized-pill gap.
 	return 1
