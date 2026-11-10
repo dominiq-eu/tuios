@@ -22,6 +22,20 @@ minimized_bg = "surface"
 	if w.MinimizedFg != "magenta" || w.MinimizedBg != "surface" {
 		t.Fatalf("minimized style was not decoded: %+v", w)
 	}
+	empty, err := ParseUserConfig([]byte("[dock.windows]\nseparator = \"\"\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !empty.Dock.Windows.Defined || empty.Dock.Windows.Separator != "" {
+		t.Fatalf("an explicit empty separator must activate the windows table: %+v", empty.Dock.Windows)
+	}
+	absent, err := ParseUserConfig([]byte("[dock.tabs]\nstyle = \"flat\"\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if absent.Dock.Windows.Defined {
+		t.Fatal("settings for workspace tabs must not activate dock window styling")
+	}
 }
 
 func TestDockWindowsDefaultsAndStyle(t *testing.T) {
