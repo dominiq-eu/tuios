@@ -252,7 +252,10 @@ current workspace rather than only minimized panes. Set
 inactive flat background has no fill, while the focused pane uses the theme
 accent by default. `format` supports `{index}`, `{title}` and `{cwd}`
 just as the pane title formatter does. Empty format keeps the historic
-number:title label. Pill cap shapes follow `appearance.dock_pill_caps`.
+number:title label. `grouped = true` (off by default) forms a contiguous
+window strip with either style. In a grouped strip `caps = true` draws one
+pair of outer ends instead of per-entry caps; `separator` works in either
+style. Pill cap glyphs follow `appearance.dock_pill_caps`.
 Clicking focuses or restores the entry. With no
 `[dock.windows]` table, minimized entries keep their existing appearance.
 
