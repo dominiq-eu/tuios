@@ -83,7 +83,7 @@ var lookFileKeys = map[string]lookFileKey{
 		Type: OptionString, Description: "How dock window entries are drawn: flat or pill",
 		Accepted: []string{"", DockTabStyleFlat, DockTabStylePill}, MaxBytes: lookMarkBytes,
 	},
-	"dock.windows.separator": tabMarkKey("Exact text between dock window entries (empty adds no gap)"),
+	"dock.windows.separator": {Type: OptionString, Description: "Text between dock window entries; default is one space, explicit empty adds no gap", Default: " ", MaxBytes: lookMarkBytes},
 	"dock.windows.separator_fg": tabColourKey("Separator colour between dock window entries"),
 	"dock.windows.active_fg": tabColourKey("Text colour of the focused pane's dock entry"),
 	"dock.windows.active_bg": tabColourKey("Background colour of the focused pane's dock entry"),
