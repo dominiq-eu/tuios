@@ -56,6 +56,16 @@ func TestDockWindowsSelection(t *testing.T) {
 	if m.dockWindowStyled() {
 		t.Fatal("unconfigured windows must retain the legacy appearance")
 	}
+	empty, err := config.ParseUserConfig([]byte(`[dock.windows]
+separator = ""
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.UserConfig = empty
+	if !m.dockWindowStyled() || m.dockWindowItemGap() != 0 {
+		t.Fatal("explicitly empty separator must activate the configured windows renderer")
+	}
 
 	m.UserConfig = &config.UserConfig{Dock: config.DockConfig{
 		Windows: config.DockWindowsConfig{Show: config.DockWindowsShowAll},
@@ -145,6 +155,34 @@ func TestDockWindowsRendering(t *testing.T) {
 			assertDockWindowHits(t, m, 0, 1)
 		})
 	}
+	t.Run("minimized-colors", func(t *testing.T) {
+		m := dockWindowsOS(t, config.DockWindowsConfig{
+			Show: config.DockWindowsShowAll, Format: "{index}",
+			Style: config.DockTabStyleFlat, Grouped: true,
+		})
+		m.Windows[0].Minimized = false
+		m.Windows[1].Minimized = true
+		m.FocusedWindow = 0
+
+		defaultRow, _ := m.renderDockString()
+		m.UserConfig.Dock.Windows.MinimizedFg = "#ff00ff"
+		coloredRow, _ := m.renderDockString()
+		if defaultRow == coloredRow {
+			t.Fatal("minimized_fg did not change the rendered entry")
+		}
+		if stripANSIForTrace(defaultRow) != stripANSIForTrace(coloredRow) {
+			t.Fatal("changing minimized foreground changed the labels or geometry")
+		}
+
+		m.UserConfig.Dock.Windows.MinimizedBg = "#00ff00"
+		backgroundRow, _ := m.renderDockString()
+		if coloredRow == backgroundRow {
+			t.Fatal("minimized_bg did not change the rendered entry")
+		}
+		if stripANSIForTrace(coloredRow) != stripANSIForTrace(backgroundRow) {
+			t.Fatal("changing minimized background changed the labels or geometry")
+		}
+	})
 }
 
 func TestDockWindowsInteraction(t *testing.T) {
