@@ -176,3 +176,113 @@ func TestDockWindowCWDUsesPaneDirectory(t *testing.T) {
 		})
 	}
 }
+
+func TestDockGroupedWindowsLayoutAndHitTargets(t *testing.T) {
+	for _, tc := range []struct {
+		name, style, separator string
+		caps bool
+	}{
+		{"pill/no-caps", config.DockTabStylePill, "", false},
+		{"pill/caps", config.DockTabStylePill, "", true},
+		{"flat/no-caps", config.DockTabStyleFlat, "", false},
+		{"flat/caps", config.DockTabStyleFlat, "", true},
+		{"flat/separator", config.DockTabStyleFlat, "|", true},
+		{"pill/separator", config.DockTabStylePill, "|", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := dockMinimizedOS(t)
+			m.Settings.DockPillCaps = true
+			m.UserConfig = &config.UserConfig{Dock: config.DockConfig{
+				Windows: config.DockWindowsConfig{
+					Show: config.DockWindowsShowAll, Grouped: true,
+					Style: tc.style, Caps: tc.caps, Format: "{index}",
+					Separator: tc.separator,
+				},
+			}}
+			m.Windows[0].Minimized = false
+			m.FocusedWindow = 0
+			layout := m.CalculateDockLayout()
+			if len(layout.VisibleItems) != 2 || layout.TruncatedCount != 0 {
+				t.Fatalf("expected two complete window entries, got %+v", layout)
+			}
+			left, right := "", ""
+			if tc.caps {
+				left = m.Settings.GetDockWorkspaceCapLeft()
+				right = m.Settings.GetDockWorkspaceCapRight()
+			}
+			want := left + " 1" + tc.separator + " 2 " + right
+			row := dockRow(t, m)
+			if !strings.Contains(row, want) {
+				t.Fatalf("grouped strip should draw %q, got:\n%s", want, row)
+			}
+			if len(m.dockItemHits) != 2 {
+				t.Fatalf("expected 2 click targets, got %d", len(m.dockItemHits))
+			}
+			h0, h1 := m.dockItemHits[0], m.dockItemHits[1]
+			if got := h0.X1 - h0.X0; got != layout.VisibleItems[0].Width+len([]rune(left)) {
+				t.Errorf("first window spans %d cells, want %d", got, layout.VisibleItems[0].Width+len([]rune(left)))
+			}
+			if got := h1.X1 - h1.X0; got != layout.VisibleItems[1].Width+1+len([]rune(right)) {
+				t.Errorf("last window spans %d cells, want %d", got, layout.VisibleItems[1].Width+1+len([]rune(right)))
+			}
+			if h1.X0-h0.X1 != len(tc.separator) {
+				t.Errorf("separator width = %d, want %d", h1.X0-h0.X1, len(tc.separator))
+			}
+			for i, hit := range m.dockItemHits {
+				if hit.WindowIndex != i {
+					t.Errorf("window %d hit targets window %d", i, hit.WindowIndex)
+				}
+				for x := hit.X0; x < hit.X1; x++ {
+					if got := m.DockItemAt(x, hit.Y); got != i {
+						t.Errorf("window %d column %d targets %d", i, x, got)
+					}
+				}
+			}
+			// Focus affects colors only; it must not reorder or resize entries.
+			m.FocusedWindow = 1
+			after := dockRow(t, m)
+			if !strings.Contains(after, want) {
+				t.Errorf("focus moved the group: %s", after)
+			}
+			for i, hit := range m.dockItemHits {
+				if hit.WindowIndex != i {
+					t.Errorf("focus change moved click target %d to %d", i, hit.WindowIndex)
+				}
+			}
+		})
+	}
+}
+
+func TestDockGroupedWindowOverflowStillClosesTheVisibleStrip(t *testing.T) {
+	m := dockCrowdedOS(t, 90, 5, 6)
+	m.Settings.DockPillCaps = true
+	m.UserConfig = &config.UserConfig{Dock: config.DockConfig{
+		Windows: config.DockWindowsConfig{
+			Grouped: true, Caps: true, Style: config.DockTabStylePill,
+			Format: "{index}",
+		},
+	}}
+	for _, width := range []int{55, 65, 75, 85, 95} {
+		m.Width = width
+		layout := m.CalculateDockLayout()
+		if layout.TruncatedCount == 0 || len(layout.VisibleItems) == 0 {
+			continue
+		}
+		row := dockRow(t, m)
+		if !strings.Contains(row, m.Settings.GetDockWorkspaceCapRight()+" ...") {
+			t.Errorf("a truncated window strip did not close its visible group: %s", row)
+		}
+		if len(m.dockItemHits) != len(layout.VisibleItems) {
+			t.Fatalf("%d visible entries, %d click targets", len(layout.VisibleItems), len(m.dockItemHits))
+		}
+		for _, h := range m.dockItemHits {
+			for x := h.X0; x < h.X1; x++ {
+				if m.DockItemAt(x, h.Y) != h.WindowIndex {
+					t.Errorf("truncated entry at column %d did not target pane %d", x, h.WindowIndex)
+				}
+			}
+		}
+		return
+	}
+	t.Fatal("test did not reach a partially truncated group")
+}
