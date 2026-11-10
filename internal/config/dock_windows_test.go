@@ -7,6 +7,9 @@ func TestDockWindowsDefaultsPreserveMinimizedBehavior(t *testing.T) {
 	if w.ShowAll() {
 		t.Fatal("an omitted dock.windows table must not list visible panes")
 	}
+	if w.Grouped {
+		t.Fatal("grouping must remain opt-in")
+	}
 	style := w.TabStyle()
 	if style.Flat() {
 		t.Fatalf("the configured window style defaults to pill, got %q", style.Style)
@@ -61,5 +64,20 @@ func TestDockWindowsFlatStyleAndFormat(t *testing.T) {
 	}
 	if got := FormatDockWindowLabel("", "", 3, "/work"); got != "3" {
 		t.Fatalf("nameless default label expanded to %q", got)
+	}
+}
+
+func TestDockWindowGroupingIndependentFromStyle(t *testing.T) {
+	for _, style := range []string{DockTabStylePill, DockTabStyleFlat} {
+		for _, caps := range []bool{false, true} {
+			cfg := DockWindowsConfig{Grouped: true, Style: style, Caps: caps}
+			adapted := cfg.TabStyle()
+			if !cfg.Grouped || adapted.Flat() != (style == DockTabStyleFlat) {
+				t.Fatalf("grouping changed style semantics: %+v, adapted=%+v", cfg, adapted)
+			}
+			if adapted.Caps != caps {
+				t.Fatalf("grouping changed caps setting: %+v", adapted)
+			}
+		}
 	}
 }
