@@ -124,11 +124,17 @@ func TestDockWindowsRendering(t *testing.T) {
 			func(_, _ string) string { return " 12 " }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			m := dockWindowsOS(t, config.DockWindowsConfig{
+			options := config.DockWindowsConfig{
 				Show: config.DockWindowsShowAll, Format: "{index}",
 				Style: tc.style, Grouped: tc.grouped, Caps: tc.caps,
 				Separator: tc.separator,
-			})
+			}
+			if tc.name == "flat/caps" {
+				// Inactive flat tabs without a background deliberately draw
+				// spaces instead of coloured cap glyphs.
+				options.InactiveBg = "panel"
+			}
+			m := dockWindowsOS(t, options)
 			m.Settings.DockPillCaps = true
 			m.Windows[0].Minimized = false
 			m.FocusedWindow = 0
