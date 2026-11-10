@@ -1967,6 +1967,32 @@ tuios runs one copy of the command at a time. When an event arrives while the
 command runs, tuios runs the command one more time when it ends. An interval
 that comes due while the command runs is skipped.
 
+### Dock window entries
+
+The `windows` component in the dock centre lists minimized panes by default.
+Set `[dock.windows] show = "all"` to include visible panes in the current
+workspace. A click on a visible pane focuses it; a minimized pane is restored.
+
+```toml
+[dock.windows]
+show = "all"             # minimized (default) | all
+style = "flat"           # flat (configured default) | pill
+separator = " | "
+active_bg = "accent"
+active_bold = true
+inactive_fg = "dim"
+caps = false
+```
+
+The window styling keys match the corresponding `[dock.tabs]` keys:
+`style`, `separator`, `separator_fg`, `active_fg`, `active_bg`,
+`active_bold`, `active_underline`, `inactive_fg`, `inactive_bg`,
+`inactive_bold`, and `caps`. The two sections are independent, but share
+the same theme colour and glyph handling. In flat style, an unset inactive
+background has no fill; an unset active background uses the theme accent.
+The established minimized-pill appearance remains unchanged if the entire
+`[dock.windows]` section is omitted.
+
 ### Workspace tab style
 
 By default the workspace strip draws rounded pills. `[dock.tabs]` can draw
