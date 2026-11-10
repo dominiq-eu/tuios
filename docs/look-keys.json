@@ -1046,8 +1046,8 @@
     {
       "path": "dock.windows.separator",
       "type": "string",
-      "description": "Exact text between dock window entries (empty adds no gap)",
-      "default": "",
+      "description": "Text between dock window entries; default is one space, explicit empty adds no gap",
+      "default": " ",
       "max_bytes": 32
     },
     {
