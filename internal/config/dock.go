@@ -263,7 +263,9 @@ func (w DockWindowsConfig) ShowAll() bool {
 // palette rules, cap glyphs, or colour resolver are introduced.
 func (w DockWindowsConfig) TabStyle() DockTabsConfig {
 	style := strings.TrimSpace(w.Style)
-	if style == "" {
+	if style != DockTabStylePill {
+		// Unknown styles are warned about by validateDock and fall back to
+		// flat, rather than silently selecting the pill renderer.
 		style = DockTabStyleFlat
 	}
 	return DockTabsConfig{
