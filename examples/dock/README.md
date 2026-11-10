@@ -146,7 +146,8 @@ needed under `[dock.windows]` (the workspace-tab `caps` option is separate).
 The `format` placeholders are `{index}`, `{title}` (the same resolved
 title as the sidebar's terminals section), and `{cwd}` (basename of the
 current directory). A missing format retains the legacy numeric/title label.
-The `separator` text is rendered exactly in both styles.
+When `separator` is omitted, it defaults to one space. An explicit
+`separator = ""` adds no gap; custom text is rendered exactly in both styles.
 
 The window list excludes scratch panes, popups, and windows from other
 workspaces. Clicking a visible entry focuses it; clicking a minimized one
