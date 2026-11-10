@@ -48,7 +48,9 @@ const (
 func (m *OS) OpenContextMenu(x, y int) {
 	target, windowIndex, workspace := m.contextMenuTargetAt(x, y)
 
-	if target == CtxTargetPane {
+	if target == CtxTargetPane ||
+		(target == CtxTargetDockItem && windowIndex >= 0 &&
+			windowIndex < len(m.Windows) && !m.Windows[windowIndex].Minimized) {
 		m.FocusWindow(windowIndex)
 	}
 
@@ -293,6 +295,12 @@ func (m *OS) paneMenu(windowIndex int) (string, []ContextMenuItem) {
 // Restoring the nth minimized window is only an action for the first nine of
 // them, so a tenth entry shows the row dimmed rather than pretending.
 func (m *OS) dockItemMenu(windowIndex int) (string, []ContextMenuItem) {
+	if windowIndex >= 0 && windowIndex < len(m.Windows) &&
+		!m.Windows[windowIndex].Minimized {
+		// Visible entries are regular panes; use their existing menu and
+		// action dispatch rather than adding a second set of commands.
+		return m.paneMenu(windowIndex)
+	}
 	title := contextMenuWindowName(m, windowIndex, "Window")
 
 	pos := m.minimizedPosition(windowIndex)
