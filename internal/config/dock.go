@@ -235,6 +235,9 @@ func (t DockTabsConfig) Icon(n int) string {
 // lists minimized panes only; an empty Show preserves that behavior.
 type DockWindowsConfig struct {
 	Show string `toml:"show,omitempty"`
+	// Format has the pane-title placeholders {index}, {title}, and {cwd}.
+	// Empty retains the established "index:title" label (or just index).
+	Format string `toml:"format,omitempty"`
 
 	Style           string `toml:"style,omitempty"`
 	Separator       string `toml:"separator,omitempty"`
@@ -254,6 +257,19 @@ const (
 	DockWindowsShowAll       = "all"
 )
 
+// FormatDockWindowLabel expands a dock window label using the same placeholders
+// as appearance.window_title_format. An unset format keeps the historical
+// numeric prefix but also allows the terminal's title when no custom name exists.
+func FormatDockWindowLabel(format, title string, index int, cwd string) string {
+	if format == "" {
+		if title == "" {
+			return strconv.Itoa(index)
+		}
+		return fmt.Sprintf("%d:%s", index, title)
+	}
+	return expandTitle(format, title, index, cwd)
+}
+
 // ShowAll reports whether the dock is a workspace window list.
 func (w DockWindowsConfig) ShowAll() bool {
 	return strings.TrimSpace(w.Show) == DockWindowsShowAll
@@ -263,14 +279,17 @@ func (w DockWindowsConfig) ShowAll() bool {
 // palette rules, cap glyphs, or colour resolver are introduced.
 func (w DockWindowsConfig) TabStyle() DockTabsConfig {
 	style := strings.TrimSpace(w.Style)
-	if style != DockTabStylePill {
-		// Unknown styles are warned about by validateDock and fall back to
-		// flat, rather than silently selecting the pill renderer.
-		style = DockTabStyleFlat
+	if style != DockTabStyleFlat {
+		// Unset or invalid styles follow the workspace strip's pill default.
+		style = DockTabStylePill
+	}
+	activeBg := w.ActiveBg
+	if activeBg == "" && style == DockTabStylePill {
+		activeBg = "accent"
 	}
 	return DockTabsConfig{
 		Style: style, Separator: w.Separator, SeparatorFg: w.SeparatorFg,
-		ActiveFg: w.ActiveFg, ActiveBg: w.ActiveBg, ActiveBold: w.ActiveBold,
+		ActiveFg: w.ActiveFg, ActiveBg: activeBg, ActiveBold: w.ActiveBold,
 		ActiveUnderline: w.ActiveUnderline,
 		InactiveFg: w.InactiveFg, InactiveBg: w.InactiveBg,
 		InactiveBold: w.InactiveBold, Caps: w.Caps,
@@ -618,6 +637,14 @@ func validateDock(cfg *UserConfig, result *ValidationResult) {
 		"attention_fg": t.AttentionFg,
 	})
 	w := cfg.Dock.Windows
+	for _, placeholder := range titlePlaceholderPattern().FindAllString(w.Format, -1) {
+		if !slices.Contains(knownTitlePlaceholders, placeholder) {
+			result.Warnings = append(result.Warnings, ValidationError{
+				Field: "dock.windows", Key: "format",
+				Message: fmt.Sprintf("%q is not a known placeholder (allowed: %s); it will be shown literally", placeholder, strings.Join(knownTitlePlaceholders, ", ")),
+			})
+		}
+	}
 	if show := strings.TrimSpace(w.Show); show != "" && show != DockWindowsShowMinimized && show != DockWindowsShowAll {
 		result.Warnings = append(result.Warnings, ValidationError{
 			Field: "dock.windows", Key: "show",
@@ -627,7 +654,7 @@ func validateDock(cfg *UserConfig, result *ValidationResult) {
 	if st := strings.TrimSpace(w.Style); st != "" && st != DockTabStylePill && st != DockTabStyleFlat {
 		result.Warnings = append(result.Warnings, ValidationError{
 			Field: "dock.windows", Key: "style",
-			Message: fmt.Sprintf("style %q is not %s or %s; drawing flat entries", st, DockTabStylePill, DockTabStyleFlat),
+			Message: fmt.Sprintf("style %q is not %s or %s; drawing pills", st, DockTabStylePill, DockTabStyleFlat),
 		})
 	}
 	if w.Caps && w.TabStyle().Style != DockTabStyleFlat {
