@@ -46,6 +46,7 @@ type DockLayout struct {
 	CustomLeft     int
 	CustomCenter   int
 	CustomRight    int
+	ItemGap        int        // Width between window entries in the current style
 	TruncatedCount int        // Number of items that don't fit
 	VisibleItems   []DockItem // Items that fit and should be displayed
 	ModeInfo       ModeInfo   // Mode display information for styling
@@ -593,7 +594,7 @@ func (m *OS) ScrollDockWorkspacesAt(x, y int) bool {
 // to ensure consistent positioning.
 func (m *OS) CalculateDockLayout() DockLayout {
 	m.ensureDockPlan()
-	layout := DockLayout{}
+	layout := DockLayout{ItemGap: m.dockWindowItemGap()}
 
 	// Build left side text (compact format)
 	layout.ModeLabel, layout.TrailText, layout.TapeText, layout.LeftWidth, layout.ModeInfo = m.buildDockLeftText()
@@ -659,11 +660,11 @@ func (m *OS) CalculateDockLayout() DockLayout {
 		return layout
 	}
 	if yields {
-		if dockItemsWidth(allItems) > max(room-want, 0) &&
-			!shortenDockItemNames(max(room-want, 0), allItems) {
+		if dockItemsWidth(allItems, layout.ItemGap) > max(room-want, 0) &&
+			!shortenDockItemNames(max(room-want, 0), allItems, layout.ItemGap) {
 			want = 0
 		}
-		room = max(room-dockItemsWidth(allItems), 0)
+		room = max(room-dockItemsWidth(allItems, layout.ItemGap), 0)
 	}
 	// With a live message, the right block keeps its full width, and the
 	// position pass shortens the entries' names into what the block leaves.
@@ -897,11 +898,11 @@ func (m *OS) buildDockLeftText() (modeLabel, trail, tape string, width int, mode
 // dockItemsWidth is the room every minimized entry needs laid out at once,
 // including the single column between two of them. It is what the renderer
 // builds, so the layout pass reserves against the same number the draw uses.
-func dockItemsWidth(items []DockItem) int {
+func dockItemsWidth(items []DockItem, gap int) int {
 	w := 0
 	for i, it := range items {
 		if i > 0 {
-			w++
+			w += gap
 		}
 		w += it.Width
 	}
@@ -1011,51 +1012,77 @@ func dockItemLabel(number int, name string) string {
 	return fmt.Sprintf(" %d ", number)
 }
 
-// getDockItems returns all dock items (minimized windows in current workspace)
+// dockWindowsConfig returns the independent styling and behavior of window entries.
+func (m *OS) dockWindowsConfig() config.DockWindowsConfig {
+	if m.UserConfig == nil {
+		return config.DockWindowsConfig{}
+	}
+	return m.UserConfig.Dock.Windows
+}
+
+// dockWindowStyled keeps the historical minimized-only rendering untouched
+// unless a user explicitly configures the windows component.
+func (m *OS) dockWindowStyled() bool {
+	return m.dockWindowsConfig() != (config.DockWindowsConfig{})
+}
+
+func (m *OS) dockWindowItemGap() int {
+	if m.dockWindowStyled() {
+		style := m.dockWindowsConfig().TabStyle()
+		return dockTabGap(&style)
+	}
+	return 1
+}
+
+// getDockItems lists the current workspace's panes. The default retains the
+// established minimized order; 'all' uses stable window-list order so focus
+// changes do not shift entries underneath the pointer.
 func (m *OS) getDockItems() []DockItem {
 	m.ensureDockPlan()
 	if !m.dockPlan.Has(config.DockComponentWindows) {
 		return nil
 	}
-	dockWindows := m.MinimizedInOrder()
-
-	// Build dock items
-	items := make([]DockItem, 0, len(dockWindows))
-	itemNumber := 1
-
-	for _, windowIndex := range dockWindows {
-		window := m.Windows[windowIndex]
-		labelText := dockItemLabel(itemNumber, window.CustomName)
-
-		// Calculate width: 2 for circles (left + right) + actual rendered label width
-		// Use lipgloss.Width to get proper display width (handles Unicode, emojis, etc.)
-		itemWidth := lipgloss.Width(m.Settings.GetDockPillLeftChar()) +
-			lipgloss.Width(labelText) +
-			lipgloss.Width(m.Settings.GetDockPillRightChar())
-
-		items = append(items, DockItem{
-			WindowIndex: windowIndex,
-			Label:       labelText,
-			Width:       itemWidth,
-			Number:      itemNumber,
-			Name:        printableTitle(window.CustomName),
-		})
-
-		itemNumber++
+	windows := m.MinimizedInOrder()
+	if m.dockWindowsConfig().ShowAll() {
+		windows = windows[:0]
+		for i, w := range m.Windows {
+			if w == nil || w.Workspace != m.CurrentWorkspace || w.IsScratch || w.IsPopup {
+				continue
+			}
+			windows = append(windows, i)
+		}
 	}
 
+	items := make([]DockItem, 0, len(windows))
+	styled := m.dockWindowStyled()
+	style := m.dockWindowsConfig().TabStyle()
+	for _, windowIndex := range windows {
+		window := m.Windows[windowIndex]
+		number := len(items) + 1
+		label := dockItemLabel(number, window.CustomName)
+		width := lipgloss.Width(m.Settings.GetDockPillLeftChar()) +
+			lipgloss.Width(label) +
+			lipgloss.Width(m.Settings.GetDockPillRightChar())
+		if styled {
+			width = m.dockTabWidth(&style, strings.TrimSpace(label))
+		}
+		items = append(items, DockItem{
+			WindowIndex: windowIndex, Label: label, Width: width,
+			Number: number, Name: printableTitle(window.CustomName),
+		})
+	}
 	return items
 }
 
 // calculateItemPositions determines which items fit and their X positions
 func (layout *DockLayout) calculateItemPositions(screenWidth int, allItems []DockItem) {
-	if dockItemsWidth(allItems) <= max(screenWidth-layout.LeftWidth-layout.RightWidth, 0) {
+	if dockItemsWidth(allItems, layout.ItemGap) <= max(screenWidth-layout.LeftWidth-layout.RightWidth, 0) {
 		// All items fit.
 		layout.VisibleItems = allItems
 		layout.TruncatedCount = 0
 		return
 	}
-	if shortenDockItemNames(max(screenWidth-layout.LeftWidth-layout.RightWidth, 0), allItems) {
+	if shortenDockItemNames(max(screenWidth-layout.LeftWidth-layout.RightWidth, 0), allItems, layout.ItemGap) {
 		layout.VisibleItems = allItems
 		layout.TruncatedCount = 0
 		return
@@ -1078,7 +1105,7 @@ func (layout *DockLayout) calculateItemPositions(screenWidth int, allItems []Doc
 // was handed, and whatever sat to the right — the live message, mostly —
 // paid the difference. The budget is now searched for real: the largest one
 // whose drawn total fits.
-func shortenDockItemNames(available int, allItems []DockItem) bool {
+func shortenDockItemNames(available int, allItems []DockItem, gap int) bool {
 	// entryWidthAt is what the entry draws with its name held to b cells: the
 	// circles it cannot lose plus a label rebuilt at that budget.
 	entryWidthAt := func(item DockItem, b int) int {
@@ -1102,7 +1129,7 @@ func shortenDockItemNames(available int, allItems []DockItem) bool {
 		total := 0
 		for i, item := range allItems {
 			if i > 0 {
-				total++ // Space before item
+				total += gap // Separator before item
 			}
 			total += entryWidthAt(item, b)
 		}
@@ -1148,7 +1175,7 @@ func (layout *DockLayout) truncateItems(screenWidth int, allItems []DockItem) {
 	for i, item := range allItems {
 		itemWidthWithSpace := item.Width
 		if i > 0 {
-			itemWidthWithSpace++ // Space before item
+			itemWidthWithSpace += layout.ItemGap // Separator before item
 		}
 
 		if currentWidth+itemWidthWithSpace <= maxItemsWidth {
