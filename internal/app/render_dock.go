@@ -382,39 +382,47 @@ func (m *OS) renderDockString() (string, int) {
 			windowIndex := dockItem.WindowIndex
 			window := m.Windows[windowIndex]
 
-			// A minimized entry rests on the same Panel step the rest of the chrome
-			// uses; only the two states worth a saturated fill get one.
-			bgColor, fgColor := color.Color(pal.Panel), color.Color(pal.FgDim)
-			emphasis := false
-
-			isHighlighted := time.Now().Before(window.MinimizeHighlightUntil)
-
-			switch {
-			case isHighlighted:
-				bgColor, emphasis = pal.Success, true
-			case windowIndex == m.FocusedWindow:
-				bgColor, emphasis = pal.Accent, true
+			var chunk string
+			if m.dockWindowStyled() {
+				// Window entries share the established workspace-tab painter:
+				// theme roles, no-background inactive flat tabs, caps, and
+				// 16-colour fallbacks all come from the same implementation.
+				style := m.dockWindowsConfig().TabStyle()
+				if itemNumber > 1 {
+					gap := dockTabGapText(&style, pal)
+					dockItemsStr.WriteString(gap)
+					relX += lipgloss.Width(gap)
+				}
+				chunk = m.dockTab(&style, strings.TrimSpace(dockItem.Label),
+					windowIndex == m.FocusedWindow, false, false, pal)
+			} else {
+				// The unconfigured component retains the exact historical
+				// minimized-pill rendering, including its highlight.
+				bgColor, fgColor := color.Color(pal.Panel), color.Color(pal.FgDim)
+				emphasis := false
+				isHighlighted := time.Now().Before(window.MinimizeHighlightUntil)
+				switch {
+				case isHighlighted:
+					bgColor, emphasis = pal.Success, true
+				case windowIndex == m.FocusedWindow:
+					bgColor, emphasis = pal.Accent, true
+				}
+				if emphasis {
+					fgColor = theme.ContrastText(bgColor)
+				}
+				caps := lipgloss.NewStyle().Foreground(bgColor)
+				nameLabel := lipgloss.NewStyle().
+					Background(bgColor).
+					Foreground(fgColor).
+					Bold(emphasis).
+					Render(dockItem.Label)
+				if itemNumber > 1 {
+					dockItemsStr.WriteString(" ")
+					relX++
+				}
+				chunk = caps.Render(m.Settings.GetDockPillLeftChar()) +
+					nameLabel + caps.Render(m.Settings.GetDockPillRightChar())
 			}
-			if emphasis {
-				fgColor = theme.ContrastText(bgColor)
-			}
-
-			// Flat by default: the caps repeated on every minimized window turned
-			// the row into beads. getDockItems pads the label, so the fill alone
-			// still reads as a cell.
-			caps := lipgloss.NewStyle().Foreground(bgColor)
-			nameLabel := lipgloss.NewStyle().
-				Background(bgColor).
-				Foreground(fgColor).
-				Bold(emphasis).
-				Render(dockItem.Label)
-
-			if itemNumber > 1 {
-				dockItemsStr.WriteString(" ")
-				relX++
-			}
-			chunk := caps.Render(m.Settings.GetDockPillLeftChar()) +
-				nameLabel + caps.Render(m.Settings.GetDockPillRightChar())
 			dockItemsStr.WriteString(chunk)
 
 			w := lipgloss.Width(chunk)
