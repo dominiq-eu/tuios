@@ -1982,7 +1982,7 @@ show = "all"             # minimized (default) | all
 style = "pill"           # pill (configured default) | flat
 grouped = true           # one contiguous strip (default: false)
 format = "{index}"       # also supports {title}, {cwd}
-separator = ""           # optional between grouped entries
+separator = ""           # exact inter-entry gap, including ungrouped entries
 active_bg = "accent"
 active_bold = true
 inactive_fg = "dim"
@@ -2006,8 +2006,9 @@ style draws contiguous segments with independent focus and click targets.
 `caps = true` puts one pair of rounded ends on the entire *visible* run;
 `caps = false` leaves squared ends. The caps still obey the global
 `appearance.dock_pill_caps` setting and the terminal's glyph capabilities.
-For grouped entries, `separator` works with either style and defaults to
-no extra gap beyond each entry's leading space. Narrow docks move the right
+`separator` works with either style whether grouped or not, and its
+value is rendered exactly: an empty separator adds no extra columns.
+Ungrouped entries still keep their own label padding. Narrow docks move the right
 cap onto the last visible entry, before the overflow marker.
 
 Omitting `[dock.windows]` entirely preserves the historic minimized-only
