@@ -47,6 +47,8 @@ func assertDockWindowHits(t *testing.T, m *OS, windows ...int) {
 	}
 }
 
+func dockSeparator(s string) *string { return &s }
+
 func TestDockWindowsSelection(t *testing.T) {
 	m := dockMinimizedOS(t)
 	m.Windows[0].Minimized = false
@@ -130,7 +132,7 @@ func TestDockWindowsRendering(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			m := dockWindowsOS(t, config.DockWindowsConfig{
 				Show: config.DockWindowsShowAll, Format: "{index}",
-				Style: tc.style, Grouped: tc.grouped, Separator: tc.separator,
+				Style: tc.style, Grouped: tc.grouped, Separator: dockSeparator(tc.separator),
 			})
 			m.Settings.DockPillCaps = true
 			m.Windows[0].Minimized = false
@@ -155,6 +157,21 @@ func TestDockWindowsRendering(t *testing.T) {
 			assertDockWindowHits(t, m, 0, 1)
 		})
 	}
+	t.Run("omitted-separator", func(t *testing.T) {
+		m := dockWindowsOS(t, config.DockWindowsConfig{
+			Show: config.DockWindowsShowAll, Style: config.DockTabStyleFlat,
+			Format: "{index}",
+		})
+		m.Windows[0].Minimized = false
+		row := dockRow(t, m)
+		if !strings.Contains(row, "1 2") {
+			t.Fatalf("omitted separator must use the default space: %q", row)
+		}
+		if len(m.dockItemHits) != 2 || m.dockItemHits[1].X0-m.dockItemHits[0].X1 != 1 {
+			t.Fatalf("omitted separator should take exactly one cell; hits=%+v", m.dockItemHits)
+		}
+	})
+
 	t.Run("minimized-colors", func(t *testing.T) {
 		m := dockWindowsOS(t, config.DockWindowsConfig{
 			Show: config.DockWindowsShowAll, Format: "{index}",
@@ -191,7 +208,7 @@ func TestDockWindowsInteraction(t *testing.T) {
 	m := dockWindowsOS(t, config.DockWindowsConfig{
 		Show: config.DockWindowsShowAll, Format: "{index}",
 		Grouped: true, Style: config.DockTabStylePill,
-		Separator: " • ",
+		Separator: dockSeparator(" • "),
 	})
 	m.Settings.DockPillCaps = true
 	m.Windows[0].Minimized = false
@@ -225,7 +242,7 @@ func TestDockWindowsOverflow(t *testing.T) {
 	m.UserConfig = &config.UserConfig{Dock: config.DockConfig{
 		Windows: config.DockWindowsConfig{
 			Grouped: true, Style: config.DockTabStylePill,
-			Format: "{index}", Separator: " ",
+			Format: "{index}", Separator: dockSeparator(" "),
 		},
 	}}
 
