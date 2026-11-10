@@ -1124,9 +1124,13 @@ func (m *OS) getDockItems() []DockItem {
 			lipgloss.Width(m.Settings.GetDockPillRightChar())
 		if styled {
 			if m.dockWindowsConfig().Grouped {
-				// A grouped segment owns its leading space; the last trailing
-				// space and outer caps are reserved by GroupChrome.
-				width = 1 + lipgloss.Width(strings.TrimSpace(label))
+				// Only the first segment gets leading padding; between
+				// segments the configured separator supplies all spacing.
+				// The trailing pad and optional caps are reserved once.
+				width = lipgloss.Width(strings.TrimSpace(label))
+				if number == 1 {
+					width++
+				}
 			} else {
 				width = m.dockTabWidth(&style, strings.TrimSpace(label))
 			}
