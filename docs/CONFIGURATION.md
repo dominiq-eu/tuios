@@ -1976,8 +1976,9 @@ workspace. A click on a visible pane focuses it; a minimized pane is restored.
 ```toml
 [dock.windows]
 show = "all"             # minimized (default) | all
-style = "flat"           # flat (configured default) | pill
-separator = " | "
+style = "pill"           # pill (configured default) | flat
+format = "{index}: {title}"  # also supports {cwd}
+separator = " | "        # flat style only
 active_bg = "accent"
 active_bold = true
 inactive_fg = "dim"
@@ -1985,12 +1986,16 @@ caps = false
 ```
 
 The window styling keys match the corresponding `[dock.tabs]` keys:
-`style`, `separator`, `separator_fg`, `active_fg`, `active_bg`,
+`show`, `format`, `style`, `separator`, `separator_fg`, `active_fg`, `active_bg`,
 `active_bold`, `active_underline`, `inactive_fg`, `inactive_bg`,
 `inactive_bold`, and `caps`. The two sections are independent, but share
 the same theme colour and glyph handling. In flat style, an unset inactive
-background has no fill; an unset active background uses the theme accent.
-The established minimized-pill appearance remains unchanged if the entire
+background has no fill; the focused pill uses the theme accent by default.
+A window format accepts `{index}` (entry number), `{title}` (custom name or
+terminal title), and `{cwd}` (working directory). Empty format renders the
+historic numeric prefix. Rounded pill caps follow
+`[appearance] dock_pill_caps = true`; the `caps` property affects flat
+entries only. The established minimized-pill appearance remains unchanged if the entire
 `[dock.windows]` section is omitted.
 
 ### Workspace tab style
