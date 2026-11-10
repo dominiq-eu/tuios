@@ -255,7 +255,7 @@ just as the pane title formatter does. Empty format keeps the historic
 number:title label. `grouped = true` (off by default) forms a contiguous
 window strip with either style. In a grouped strip `caps = true` draws one
 pair of outer ends instead of per-entry caps; `separator` works in either
-style. Pill cap glyphs follow `appearance.dock_pill_caps`.
+style regardless of grouping, with `separator = ""` adding no gap. Pill cap glyphs follow `appearance.dock_pill_caps`.
 Clicking focuses or restores the entry. With no
 `[dock.windows]` table, minimized entries keep their existing appearance.
 
