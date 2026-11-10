@@ -1038,7 +1038,7 @@
     {
       "path": "dock.windows.separator",
       "type": "string",
-      "description": "Text between flat or grouped dock window entries",
+      "description": "Exact text between dock window entries (empty adds no gap)",
       "default": "",
       "max_bytes": 32
     },
