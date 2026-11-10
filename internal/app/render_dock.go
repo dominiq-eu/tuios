@@ -58,6 +58,13 @@ func dockStripArrowFg(pal overlay.Palette) color.Color {
 // carries the width the hit rectangle was cut to, and the two must be the same
 // string.
 func workspacePill(label string, active, dragged bool, t *config.DockTabsConfig, pal overlay.Palette, s *config.Settings, ink color.Color) string {
+	body, ground := workspacePillBody(" "+label+" ", active, dragged, t, pal, ink)
+	return capTab(body, ground, s)
+}
+
+// workspacePillBody paints a pill segment without adding its own caps.
+// Grouped window strips reuse the same colors and emphasis as workspace pills.
+func workspacePillBody(content string, active, dragged bool, t *config.DockTabsConfig, pal overlay.Palette, ink color.Color) (string, color.Color) {
 	fg, ground := tabColor(t.InactiveFg, &pal), tabColor(t.InactiveBg, &pal)
 	if active {
 		fg, ground = tabColor(t.ActiveFg, &pal), tabColor(t.ActiveBg, &pal)
@@ -90,7 +97,7 @@ func workspacePill(label string, active, dragged bool, t *config.DockTabsConfig,
 	// The caps take the fill's colour as their foreground, which is how a half
 	// circle reads as the rounded end of the pill rather than as a glyph beside
 	// it.
-	return capTab(body.Render(" "+label+" "), ground, s)
+	return body.Render(content), ground
 }
 
 // capTab puts the dock's workspace caps either side of a rendered tab, drawn in
@@ -145,6 +152,12 @@ func flatWorkspaceTab(label string, active, dragged bool, t *config.DockTabsConf
 // flatTabBody is a flat tab without its caps, and the ground it is drawn on:
 // nil when the tab has no background of its own.
 func flatTabBody(label string, active, dragged bool, t *config.DockTabsConfig, pal overlay.Palette, ink color.Color) (string, color.Color) {
+	return flatTabBodyContent(" "+label+" ", active, dragged, t, pal, ink)
+}
+
+// flatTabBodyContent paints an unframed, pre-padded flat segment. It preserves
+// the normal theme/16-color fallback when a window strip is grouped.
+func flatTabBodyContent(content string, active, dragged bool, t *config.DockTabsConfig, pal overlay.Palette, ink color.Color) (string, color.Color) {
 	fg, bg, bold := tabColor(t.InactiveFg, &pal), tabColor(t.InactiveBg, &pal), t.InactiveBold
 	if ink != nil {
 		fg = ink
@@ -167,7 +180,7 @@ func flatTabBody(label string, active, dragged bool, t *config.DockTabsConfig, p
 			if t.Underlined() {
 				st = st.Underline(true)
 			}
-			return st.Render(" " + label + " "), nil
+			return st.Render(content), nil
 		}
 		bg = pal.Accent
 	}
@@ -190,7 +203,7 @@ func flatTabBody(label string, active, dragged bool, t *config.DockTabsConfig, p
 	if bg != nil {
 		st = st.Background(bg)
 	}
-	return st.Render(" " + label + " "), bg
+	return st.Render(content), bg
 }
 
 // groundOr is c, or fallback when c is unset.
@@ -211,6 +224,32 @@ func dockTabGapText(t *config.DockTabsConfig, pal overlay.Palette) string {
 		return lipgloss.NewStyle().Foreground(fg).Render(t.Separator)
 	}
 	return t.Separator
+}
+
+// groupedDockWindowSegment renders one clickable entry without individual caps.
+// Leading padding is part of the entry; gaps and the final padding are managed
+// by the strip, not the tab painter.
+func groupedDockWindowSegment(label string, active bool, t *config.DockTabsConfig, pal overlay.Palette) (string, color.Color) {
+	content := " " + label
+	if t.Flat() {
+		return flatTabBodyContent(content, active, false, t, pal, nil)
+	}
+	return workspacePillBody(content, active, false, t, pal, nil)
+}
+
+// groupedDockWindowCap draws an end cap with the adjacent entry's background.
+// An unfilled flat entry falls back to Panel solely for its outer decoration.
+func groupedDockWindowCap(glyph string, ground color.Color, pal overlay.Palette) string {
+	if glyph == "" {
+		return ""
+	}
+	if ground == nil {
+		ground = pal.Panel
+	}
+	if overlay.IsNoColor(ground) {
+		return strings.Repeat(" ", lipgloss.Width(glyph))
+	}
+	return lipgloss.NewStyle().Foreground(ground).Render(glyph)
 }
 
 // dockTab renders one tab in whichever style [dock.tabs] asks for.
@@ -384,17 +423,43 @@ func (m *OS) renderDockString() (string, int) {
 
 			var chunk string
 			if m.dockWindowStyled() {
-				// Window entries share the established workspace-tab painter:
-				// theme roles, no-background inactive flat tabs, caps, and
-				// 16-colour fallbacks all come from the same implementation.
-				style := m.dockWindowsConfig().TabStyle()
-				if itemNumber > 1 {
-					gap := dockTabGapText(&style, pal)
-					dockItemsStr.WriteString(gap)
-					relX += lipgloss.Width(gap)
+				// A grouped run has one optional cap at each outer edge;
+				// its segments share the normal pill/flat color painter but
+				// never receive per-window caps or extra inter-item padding.
+				cfg := m.dockWindowsConfig()
+				style := cfg.TabStyle()
+				if cfg.Grouped {
+					if itemNumber > 1 && cfg.Separator != "" {
+						gap := cfg.Separator
+						if ink := tabColor(cfg.SeparatorFg, &pal); ink != nil {
+							gap = lipgloss.NewStyle().Foreground(ink).Render(gap)
+						}
+						dockItemsStr.WriteString(gap)
+						relX += lipgloss.Width(gap)
+					}
+					var ground color.Color
+					chunk, ground = groupedDockWindowSegment(strings.TrimSpace(dockItem.Label),
+						windowIndex == m.FocusedWindow, &style, pal)
+					if itemNumber == 1 && cfg.Caps {
+						chunk = groupedDockWindowCap(m.Settings.GetDockWorkspaceCapLeft(), ground, pal) + chunk
+					}
+					if itemNumber == len(layout.VisibleItems) {
+						// The trailing space and right cap belong to the last
+						// *visible* item, even when overflow hides later ones.
+						chunk += sidebarStyle(ground, nil).Render(" ")
+						if cfg.Caps {
+							chunk += groupedDockWindowCap(m.Settings.GetDockWorkspaceCapRight(), ground, pal)
+						}
+					}
+				} else {
+					if itemNumber > 1 {
+						gap := dockTabGapText(&style, pal)
+						dockItemsStr.WriteString(gap)
+						relX += lipgloss.Width(gap)
+					}
+					chunk = m.dockTab(&style, strings.TrimSpace(dockItem.Label),
+						windowIndex == m.FocusedWindow, false, false, pal)
 				}
-				chunk = m.dockTab(&style, strings.TrimSpace(dockItem.Label),
-					windowIndex == m.FocusedWindow, false, false, pal)
 			} else {
 				// The unconfigured component retains the exact historical
 				// minimized-pill rendering, including its highlight.
