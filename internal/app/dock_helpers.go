@@ -52,6 +52,7 @@ type DockLayout struct {
 	CustomCenter   int
 	CustomRight    int
 	ItemGap        int        // Width between window entries in the current style
+	GroupChrome    int        // Trailing pad and outer caps, reserved once for grouped windows
 	TruncatedCount int        // Number of items that don't fit
 	VisibleItems   []DockItem // Items that fit and should be displayed
 	ModeInfo       ModeInfo   // Mode display information for styling
@@ -599,7 +600,7 @@ func (m *OS) ScrollDockWorkspacesAt(x, y int) bool {
 // to ensure consistent positioning.
 func (m *OS) CalculateDockLayout() DockLayout {
 	m.ensureDockPlan()
-	layout := DockLayout{ItemGap: m.dockWindowItemGap()}
+	layout := DockLayout{ItemGap: m.dockWindowItemGap(), GroupChrome: m.dockWindowGroupChrome()}
 
 	// Build left side text (compact format)
 	layout.ModeLabel, layout.TrailText, layout.TapeText, layout.LeftWidth, layout.ModeInfo = m.buildDockLeftText()
@@ -665,11 +666,11 @@ func (m *OS) CalculateDockLayout() DockLayout {
 		return layout
 	}
 	if yields {
-		if dockItemsWidth(allItems, layout.ItemGap) > max(room-want, 0) &&
-			!shortenDockItemNames(max(room-want, 0), allItems, layout.ItemGap) {
+		if dockItemsWidth(allItems, layout.ItemGap, layout.GroupChrome) > max(room-want, 0) &&
+			!shortenDockItemNames(max(room-want-layout.GroupChrome, 0), allItems, layout.ItemGap) {
 			want = 0
 		}
-		room = max(room-dockItemsWidth(allItems, layout.ItemGap), 0)
+		room = max(room-dockItemsWidth(allItems, layout.ItemGap, layout.GroupChrome), 0)
 	}
 	// With a live message, the right block keeps its full width, and the
 	// position pass shortens the entries' names into what the block leaves.
@@ -903,13 +904,16 @@ func (m *OS) buildDockLeftText() (modeLabel, trail, tape string, width int, mode
 // dockItemsWidth is the room every minimized entry needs laid out at once,
 // including the single column between two of them. It is what the renderer
 // builds, so the layout pass reserves against the same number the draw uses.
-func dockItemsWidth(items []DockItem, gap int) int {
+func dockItemsWidth(items []DockItem, gap, chrome int) int {
 	w := 0
 	for i, it := range items {
 		if i > 0 {
 			w += gap
 		}
 		w += it.Width
+	}
+	if len(items) > 0 {
+		w += chrome
 	}
 	return w
 }
@@ -1043,11 +1047,29 @@ func (m *OS) dockWindowStyled() bool {
 }
 
 func (m *OS) dockWindowItemGap() int {
+	if m.dockWindowsConfig().Grouped {
+		return lipgloss.Width(m.dockWindowsConfig().Separator)
+	}
 	if m.dockWindowStyled() {
 		style := m.dockWindowsConfig().TabStyle()
 		return dockTabGap(&style)
 	}
 	return 1
+}
+
+// dockWindowGroupChrome reserves only the strip's trailing padding and its
+// optional outer caps. The leading padding is measured as part of each item.
+func (m *OS) dockWindowGroupChrome() int {
+	cfg := m.dockWindowsConfig()
+	if !cfg.Grouped {
+		return 0
+	}
+	n := 1 // Trailing space after the final visible window
+	if cfg.Caps {
+		n += lipgloss.Width(m.Settings.GetDockWorkspaceCapLeft())
+		n += lipgloss.Width(m.Settings.GetDockWorkspaceCapRight())
+	}
+	return n
 }
 
 // getDockItems lists the current workspace's panes. The default retains the
@@ -1101,7 +1123,13 @@ func (m *OS) getDockItems() []DockItem {
 			lipgloss.Width(label) +
 			lipgloss.Width(m.Settings.GetDockPillRightChar())
 		if styled {
-			width = m.dockTabWidth(&style, strings.TrimSpace(label))
+			if m.dockWindowsConfig().Grouped {
+				// A grouped segment owns its leading space; the last trailing
+				// space and outer caps are reserved by GroupChrome.
+				width = 1 + lipgloss.Width(strings.TrimSpace(label))
+			} else {
+				width = m.dockTabWidth(&style, strings.TrimSpace(label))
+			}
 		}
 		item.Label, item.Width = label, width
 		items = append(items, item)
@@ -1111,13 +1139,13 @@ func (m *OS) getDockItems() []DockItem {
 
 // calculateItemPositions determines which items fit and their X positions
 func (layout *DockLayout) calculateItemPositions(screenWidth int, allItems []DockItem) {
-	if dockItemsWidth(allItems, layout.ItemGap) <= max(screenWidth-layout.LeftWidth-layout.RightWidth, 0) {
+	if dockItemsWidth(allItems, layout.ItemGap, layout.GroupChrome) <= max(screenWidth-layout.LeftWidth-layout.RightWidth, 0) {
 		// All items fit.
 		layout.VisibleItems = allItems
 		layout.TruncatedCount = 0
 		return
 	}
-	if shortenDockItemNames(max(screenWidth-layout.LeftWidth-layout.RightWidth, 0), allItems, layout.ItemGap) {
+	if shortenDockItemNames(max(screenWidth-layout.LeftWidth-layout.RightWidth-layout.GroupChrome, 0), allItems, layout.ItemGap) {
 		layout.VisibleItems = allItems
 		layout.TruncatedCount = 0
 		return
@@ -1201,7 +1229,7 @@ func (layout *DockLayout) truncateItems(screenWidth int, allItems []DockItem) {
 	const truncationIndicatorWidth = 4 // " ..." width
 
 	// Calculate max width available for items
-	maxItemsWidth := max(screenWidth-layout.LeftWidth-layout.RightWidth-truncationIndicatorWidth-4, 0)
+	maxItemsWidth := max(screenWidth-layout.LeftWidth-layout.RightWidth-truncationIndicatorWidth-4-layout.GroupChrome, 0)
 
 	// Find how many complete items fit
 	currentWidth := 0
