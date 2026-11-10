@@ -255,7 +255,8 @@ entries are dim by default, with independent colors.
 Pill windows have rounded ends when `appearance.dock_pill_caps` is enabled:
 each entry gets caps if ungrouped, only the group ends if grouped. Flat
 windows have no caps; ungrouped flat entries have no automatic padding,
-so `separator = ""` joins labels. Grouped flat entries use a shared panel
+so `separator = ""` joins labels, while omitting `separator` defaults to
+one space. Grouped flat entries use a shared panel
 background and outer padding. There is no `[dock.windows] caps` option;
 the `[dock.tabs]` caps setting remains independent. Clicking focuses or
 restores a window. With no `[dock.windows]` table the historical minimized
