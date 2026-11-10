@@ -4,271 +4,193 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/lipgloss/v2"
+
 	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/Gaurav-Gosain/tuios/internal/terminal"
 )
 
-// Configuring the window component must not make the workspace tabs inherit
-// its appearance or change the default minimized-only listing.
-func TestDockWindowEntriesDefaultToMinimizedOnly(t *testing.T) {
+// Window tests cover the configured component's observable behavior. The
+// legacy minimized dock, workspace tabs and sidebar title debounce are tested
+// independently in their respective packages.
+func dockWindowsOS(t *testing.T, windows config.DockWindowsConfig) *OS {
+	t.Helper()
 	m := dockMinimizedOS(t)
-	m.Windows[0].Minimized = false
-	items := m.getDockItems()
-	if len(items) != 1 || items[0].WindowIndex != 1 {
-		t.Fatalf("unconfigured dock lists %+v, want only minimized bravo", items)
-	}
-	if m.dockWindowStyled() {
-		t.Fatal("unconfigured window entries must retain legacy styling")
-	}
+	m.UserConfig = &config.UserConfig{Dock: config.DockConfig{Windows: windows}}
+	return m
 }
 
-// A window list contains both visible and minimized panes in this workspace.
-// Entries remain in their original order when focus moves.
-func TestDockWindowsShowAllKeepsStableEntryOrder(t *testing.T) {
-	m := dockMinimizedOS(t)
-	m.UserConfig = &config.UserConfig{
-		Dock: config.DockConfig{Windows: config.DockWindowsConfig{Show: config.DockWindowsShowAll}},
-	}
-	m.Windows[0].Minimized = false
-	m.FocusedWindow = 0
-	before := m.getDockItems()
-	if len(before) != 2 || before[0].WindowIndex != 0 || before[1].WindowIndex != 1 {
-		t.Fatalf("all mode lists %+v, want alpha and bravo", before)
-	}
-	m.FocusedWindow = 1
-	after := m.getDockItems()
-	for i := range before {
-		if before[i].WindowIndex != after[i].WindowIndex {
-			t.Fatalf("focus change reordered window entries: before=%+v after=%+v", before, after)
-		}
-	}
-}
-
-// Renderer geometry, layout measurements and the hit rectangles must use the
-// same separator width, including multi-column configured separators.
-func TestDockWindowsFlatSeparatorKeepsClickableGeometry(t *testing.T) {
-	m := dockMinimizedOS(t)
-	m.UserConfig = &config.UserConfig{
-		Dock: config.DockConfig{Windows: config.DockWindowsConfig{
-			Show: config.DockWindowsShowAll, Style: config.DockTabStyleFlat,
-			Separator: " | ", ActiveBg: "accent",
-		}},
-	}
-	m.Windows[0].Minimized = false
-	m.FocusedWindow = 0
-	row, _ := m.renderDockString()
-	if !strings.Contains(row, " | ") {
-		t.Fatalf("dock did not draw the configured separator: %q", row)
-	}
-	if len(m.dockItemHits) != 2 {
-		t.Fatalf("dock recorded %d hits, want two", len(m.dockItemHits))
+func assertDockWindowHits(t *testing.T, m *OS, windows ...int) {
+	t.Helper()
+	if len(m.dockItemHits) != len(windows) {
+		t.Fatalf("dock hit targets = %d, want %d", len(m.dockItemHits), len(windows))
 	}
 	for i, hit := range m.dockItemHits {
-		if hit.WindowIndex != i {
-			t.Errorf("entry %d routes to window %d", i, hit.WindowIndex)
+		if hit.WindowIndex != windows[i] {
+			t.Errorf("hit %d selects window %d, want %d", i, hit.WindowIndex, windows[i])
 		}
-		if hit.X1-hit.X0 != m.getDockItems()[i].Width {
-			t.Errorf("entry %d width %d differs from measured %d", i, hit.X1-hit.X0, m.getDockItems()[i].Width)
+		if hit.X0 >= hit.X1 {
+			t.Fatalf("hit %d is empty: %+v", i, hit)
 		}
 		for x := hit.X0; x < hit.X1; x++ {
-			if got := m.DockItemAt(x, hit.Y); got != hit.WindowIndex {
-				t.Errorf("window entry %d column %d routes to %d", i, x, got)
+			if got := m.DockItemAt(x, hit.Y); got != windows[i] {
+				t.Errorf("column %d of entry %d selects window %d", x, i, got)
+			}
+		}
+		if i > 0 {
+			previous := m.dockItemHits[i-1]
+			for x := previous.X1; x < hit.X0; x++ {
+				if got := m.DockItemAt(x, hit.Y); got != -1 {
+					t.Errorf("separator column %d selects window %d", x, got)
+				}
 			}
 		}
 	}
-	left, right := m.dockItemHits[0], m.dockItemHits[1]
-	if right.X0-left.X1 != len(" | ") {
-		t.Errorf("separator has %d cells, want 3", right.X0-left.X1)
+}
+
+func TestDockWindowsSelection(t *testing.T) {
+	m := dockMinimizedOS(t)
+	m.Windows[0].Minimized = false
+	if items := m.getDockItems(); len(items) != 1 || items[0].WindowIndex != 1 {
+		t.Fatalf("without configuration, expected only minimized window 1, got %+v", items)
 	}
-	for x := left.X1; x < right.X0; x++ {
-		if got := m.DockItemAt(x, left.Y); got != -1 {
-			t.Errorf("separator column %d incorrectly targets pane %d", x, got)
+	if m.dockWindowStyled() {
+		t.Fatal("unconfigured windows must retain the legacy appearance")
+	}
+
+	m.UserConfig = &config.UserConfig{Dock: config.DockConfig{
+		Windows: config.DockWindowsConfig{Show: config.DockWindowsShowAll},
+	}}
+	other := newTestWindow(t, "other-workspace", 60, 20)
+	other.Workspace = 2
+	scratch := newTestWindow(t, "scratch", 60, 20)
+	scratch.Workspace, scratch.IsScratch = 1, true
+	popup := newTestWindow(t, "popup", 60, 20)
+	popup.Workspace, popup.IsPopup = 1, true
+	m.Windows = append(m.Windows, other, scratch, popup)
+
+	for _, focused := range []int{0, 1} {
+		m.FocusedWindow = focused
+		items := m.getDockItems()
+		if len(items) != 2 || items[0].WindowIndex != 0 || items[1].WindowIndex != 1 {
+			t.Fatalf("focus %d: show=all should list ordinary current-workspace windows in stable order, got %+v", focused, items)
 		}
 	}
 }
 
-func TestDockWindowTitlesMatchSidebarTerminals(t *testing.T) {
-	m := dockMinimizedOS(t)
-	m.UserConfig = &config.UserConfig{
-		Dock: config.DockConfig{Windows: config.DockWindowsConfig{
-			Show: config.DockWindowsShowAll,
-			Format: "{index}: {title}",
-		}},
-	}
+func TestDockWindowsLabels(t *testing.T) {
+	m := dockWindowsOS(t, config.DockWindowsConfig{
+		Show: config.DockWindowsShowAll,
+		Format: "({index}) {title} @ {cwd}",
+	})
 	m.Windows[0].Minimized = false
 	m.Windows[0].CustomName = ""
 	m.Windows[0].ForegroundCmd = "vim"
-	m.Windows[1].CustomName = ""
-	m.Windows[1].ForegroundCmd = ""
-	m.Windows[1].SetTitle("")
-	for i, w := range m.Windows {
-		want := printableTitle(m.railTitleShown(w))
-		if want == "" {
-			want = "shell"
-		}
-		item := m.getDockItems()[i]
-		if item.Name != want {
-			t.Errorf("window %d dock name = %q, sidebar terminal name = %q", i, item.Name, want)
-		}
-		if !strings.Contains(item.Label, want) {
-			t.Errorf("window %d label %q does not include sidebar title %q", i, item.Label, want)
-		}
-	}
-	if got := m.getDockItems()[0].Name; got != "vim" {
-		t.Fatalf("foreground command is not the dock title: %q", got)
-	}
-	if got := m.getDockItems()[1].Name; got != "shell" {
-		t.Fatalf("unnamed terminal lacks sidebar fallback: %q", got)
-	}
-}
+	m.Windows[0].ShellPgid = 0
+	m.Windows[0].Cwd = "/home/user/project"
 
-func TestDockWindowTitleFollowsDebouncedSidebarTitle(t *testing.T) {
-	m := dockMinimizedOS(t)
-	m.UserConfig = &config.UserConfig{
-		Dock: config.DockConfig{Windows: config.DockWindowsConfig{
-			Show: config.DockWindowsShowAll, Format: "{title}",
-		}},
-	}
-	m.Windows[0].CustomName = ""
-	m.Windows[0].ForegroundCmd = ""
-	m.Windows[0].SetTitle("old")
-	m.updateRailTitles()
-	m.Windows[0].SetTitle("new")
-	if got := m.getDockItems()[0].Name; got != "old" {
-		t.Fatalf("dock jumped ahead of debounced sidebar title: %q", got)
-	}
-	backdate(m, m.Windows[0].ID, railTitleDebounce)
-	m.updateRailTitles()
-	if got := m.getDockItems()[0].Name; got != "new" {
-		t.Fatalf("dock did not follow updated sidebar title: %q", got)
-	}
-}
+	m.Windows[1].CustomName = "notes"
+	m.Windows[1].Host = "remote"
+	m.Windows[1].ShellPgid = 0
+	m.Windows[1].Cwd = "/srv/notes"
 
-func TestDockWindowCWDUsesPaneDirectory(t *testing.T) {
-	m := dockMinimizedOS(t)
-	m.UserConfig = &config.UserConfig{
-		Dock: config.DockConfig{Windows: config.DockWindowsConfig{
-			Show: config.DockWindowsShowAll, Format: "{cwd}",
-		}},
-	}
-	w := m.Windows[0]
-	w.CustomName = ""
-	w.ShellPgid = 0 // daemon panes may not have a process on the client
-	for _, tc := range []struct {
-		name, cwd, host, want string
-	}{
-		{"shell report", "/home/user/project", "", "/home/user/project"},
-		{"daemon-managed pane", "/srv/app", "", "/srv/app"},
-		{"remote pane", "/remote/repo", "build-host", "/remote/repo"},
-		{"unknown directory", "", "", ""},
+	items := m.getDockItems()
+	for i, want := range []string{
+		"(1) vim @ /home/user/project",
+		"(2) notes @ /srv/notes",
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			w.Cwd, w.Host = tc.cwd, tc.host
-			items := m.getDockItems()
-			if len(items) < 1 {
-				t.Fatal("missing window entry")
-			}
-			if got := items[0].CWD; got != tc.want {
-				t.Fatalf("CWD = %q, want %q", got, tc.want)
-			}
-			if got := strings.TrimSpace(items[0].Label); got != tc.want {
-				t.Fatalf("formatted label = %q, want %q", got, tc.want)
-			}
-		})
+		if got := strings.TrimSpace(items[i].Label); got != want {
+			t.Errorf("window %d label = %q, want %q", i, got, want)
+		}
 	}
 }
 
-func TestDockGroupedWindowsLayoutAndHitTargets(t *testing.T) {
+func TestDockWindowsRendering(t *testing.T) {
 	for _, tc := range []struct {
 		name, style, separator string
-		caps bool
+		grouped, caps          bool
+		want                   func(left, right string) string
 	}{
-		{"pill/no-caps", config.DockTabStylePill, "", false},
-		{"pill/caps", config.DockTabStylePill, "", true},
-		{"flat/no-caps", config.DockTabStyleFlat, "", false},
-		{"flat/caps", config.DockTabStyleFlat, "", true},
-		{"flat/space-separator", config.DockTabStyleFlat, " ", true},
-		{"pill/space-separator", config.DockTabStylePill, " ", true},
-		{"flat/separator", config.DockTabStyleFlat, "|", true},
-		{"pill/separator", config.DockTabStylePill, "|", true},
+		{"pill", config.DockTabStylePill, "", false, false,
+			func(l, r string) string { return l + " 1 " + r + l + " 2 " + r }},
+		{"flat", config.DockTabStyleFlat, "", false, false,
+			func(_, _ string) string { return " 1  2 " }},
+		{"flat/caps", config.DockTabStyleFlat, "|", false, true,
+			func(l, r string) string { return l + " 1 " + r + "|" + l + " 2 " + r }},
+		{"grouped/pill", config.DockTabStylePill, " ", true, true,
+			func(l, r string) string { return l + " 1 2 " + r }},
+		{"grouped/flat", config.DockTabStyleFlat, "|", true, true,
+			func(l, r string) string { return l + " 1|2 " + r }},
+		{"grouped/no-caps", config.DockTabStyleFlat, "", true, false,
+			func(_, _ string) string { return " 12 " }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			m := dockMinimizedOS(t)
+			m := dockWindowsOS(t, config.DockWindowsConfig{
+				Show: config.DockWindowsShowAll, Format: "{index}",
+				Style: tc.style, Grouped: tc.grouped, Caps: tc.caps,
+				Separator: tc.separator,
+			})
 			m.Settings.DockPillCaps = true
-			m.UserConfig = &config.UserConfig{Dock: config.DockConfig{
-				Windows: config.DockWindowsConfig{
-					Show: config.DockWindowsShowAll, Grouped: true,
-					Style: tc.style, Caps: tc.caps, Format: "{index}",
-					Separator: tc.separator,
-				},
-			}}
 			m.Windows[0].Minimized = false
 			m.FocusedWindow = 0
-			layout := m.CalculateDockLayout()
-			if len(layout.VisibleItems) != 2 || layout.TruncatedCount != 0 {
-				t.Fatalf("expected two complete window entries, got %+v", layout)
-			}
-			left, right := "", ""
-			if tc.caps {
-				left = m.Settings.GetDockWorkspaceCapLeft()
-				right = m.Settings.GetDockWorkspaceCapRight()
-			}
-			// No implicit space: only the first label has the group's
-			// opening padding. In particular, separator="" renders "12".
-			want := left + " 1" + tc.separator + "2 " + right
+
 			row := dockRow(t, m)
+			left, right := m.Settings.GetDockWorkspaceCapLeft(), m.Settings.GetDockWorkspaceCapRight()
+			want := tc.want(left, right)
 			if !strings.Contains(row, want) {
-				t.Fatalf("grouped strip should draw %q, got:\n%s", want, row)
+				t.Fatalf("expected window strip %q in rendered row %q", want, row)
 			}
-			if len(m.dockItemHits) != 2 {
-				t.Fatalf("expected 2 click targets, got %d", len(m.dockItemHits))
-			}
-			h0, h1 := m.dockItemHits[0], m.dockItemHits[1]
-			if got := h0.X1 - h0.X0; got != layout.VisibleItems[0].Width+len([]rune(left)) {
-				t.Errorf("first window spans %d cells, want %d", got, layout.VisibleItems[0].Width+len([]rune(left)))
-			}
-			if got := h1.X1 - h1.X0; got != layout.VisibleItems[1].Width+1+len([]rune(right)) {
-				t.Errorf("last window spans %d cells, want %d", got, layout.VisibleItems[1].Width+1+len([]rune(right)))
-			}
-			if h1.X0-h0.X1 != len(tc.separator) {
-				t.Errorf("separator width = %d, want %d", h1.X0-h0.X1, len(tc.separator))
-			}
-			if tc.separator == "" && h0.X1 != h1.X0 {
-				t.Fatal("empty separator must make adjacent window hitboxes contiguous")
-			}
-			for i, hit := range m.dockItemHits {
-				if hit.WindowIndex != i {
-					t.Errorf("window %d hit targets window %d", i, hit.WindowIndex)
-				}
-				for x := hit.X0; x < hit.X1; x++ {
-					if got := m.DockItemAt(x, hit.Y); got != i {
-						t.Errorf("window %d column %d targets %d", i, x, got)
-					}
-				}
-			}
-			// Focus affects colors only; it must not reorder or resize entries.
-			m.FocusedWindow = 1
-			after := dockRow(t, m)
-			if !strings.Contains(after, want) {
-				t.Errorf("focus moved the group: %s", after)
-			}
-			for i, hit := range m.dockItemHits {
-				if hit.WindowIndex != i {
-					t.Errorf("focus change moved click target %d to %d", i, hit.WindowIndex)
-				}
-			}
+			assertDockWindowHits(t, m, 0, 1)
 		})
 	}
 }
 
-func TestDockGroupedWindowOverflowStillClosesTheVisibleStrip(t *testing.T) {
+func TestDockWindowsInteraction(t *testing.T) {
+	// Use a multicolumn separator and caps to check the boundary between
+	// clickable entries against the actual rendered terminal columns.
+	m := dockWindowsOS(t, config.DockWindowsConfig{
+		Show: config.DockWindowsShowAll, Format: "{index}",
+		Grouped: true, Style: config.DockTabStylePill,
+		Caps: true, Separator: " • ",
+	})
+	m.Settings.DockPillCaps = true
+	m.Windows[0].Minimized = false
+	m.FocusedWindow = 0
+
+	row := dockRow(t, m)
+	left, right := m.Settings.GetDockWorkspaceCapLeft(), m.Settings.GetDockWorkspaceCapRight()
+	strip := left + " 1 • 2 " + right
+	start := strings.Index(row, strip)
+	if start < 0 {
+		t.Fatalf("expected window strip %q in rendered row %q", strip, row)
+	}
+	x0 := lipgloss.Width(row[:start])
+	firstEnd := x0 + lipgloss.Width(left+" 1")
+	secondStart := firstEnd + lipgloss.Width(" • ")
+	secondEnd := x0 + lipgloss.Width(strip)
+	assertDockWindowHits(t, m, 0, 1)
+	if first, second := m.dockItemHits[0], m.dockItemHits[1]; first.X0 != x0 ||
+		first.X1 != firstEnd || second.X0 != secondStart || second.X1 != secondEnd {
+		t.Fatalf("rendered cells %d..%d and %d..%d do not match hit rectangles %+v",
+			x0, firstEnd, secondStart, secondEnd, m.dockItemHits)
+	}
+	if got := lipgloss.Width(row); got > m.Width {
+		t.Fatalf("rendered dock width %d exceeds %d", got, m.Width)
+	}
+}
+
+func TestDockWindowsOverflow(t *testing.T) {
 	m := dockCrowdedOS(t, 90, 5, 6)
 	m.Settings.DockPillCaps = true
 	m.UserConfig = &config.UserConfig{Dock: config.DockConfig{
 		Windows: config.DockWindowsConfig{
 			Grouped: true, Caps: true, Style: config.DockTabStylePill,
-			Format: "{index}",
+			Format: "{index}", Separator: " ",
 		},
 	}}
+
+	// Exercise a real partial strip, without tying the test to an exact
+	// surrounding workspace-strip or notification width.
 	for _, width := range []int{55, 65, 75, 85, 95} {
 		m.Width = width
 		layout := m.CalculateDockLayout()
@@ -277,70 +199,17 @@ func TestDockGroupedWindowOverflowStillClosesTheVisibleStrip(t *testing.T) {
 		}
 		row := dockRow(t, m)
 		if !strings.Contains(row, m.Settings.GetDockWorkspaceCapRight()+" ...") {
-			t.Errorf("a truncated window strip did not close its visible group: %s", row)
+			t.Errorf("truncated group did not close before overflow marker: %q", row)
 		}
-		if len(m.dockItemHits) != len(layout.VisibleItems) {
-			t.Fatalf("%d visible entries, %d click targets", len(layout.VisibleItems), len(m.dockItemHits))
+		if got := lipgloss.Width(row); got > width {
+			t.Errorf("dock row has %d cells on %d-column terminal", got, width)
 		}
-		for _, h := range m.dockItemHits {
-			for x := h.X0; x < h.X1; x++ {
-				if m.DockItemAt(x, h.Y) != h.WindowIndex {
-					t.Errorf("truncated entry at column %d did not target pane %d", x, h.WindowIndex)
-				}
-			}
+		windows := make([]int, len(layout.VisibleItems))
+		for i, item := range layout.VisibleItems {
+			windows[i] = item.WindowIndex
 		}
+		assertDockWindowHits(t, m, windows...)
 		return
 	}
-	t.Fatal("test did not reach a partially truncated group")
-}
-
-func TestDockWindowsSeparatorIsExactWithoutGrouping(t *testing.T) {
-	// The previous shared tab-gap helper silently substituted one column
-	// for separator="" and ignored nonempty separators on pill entries.
-	// Both styles must use the literal separator, including the empty one.
-	for _, style := range []string{config.DockTabStyleFlat, config.DockTabStylePill} {
-		for _, separator := range []string{"", " ", " | "} {
-			t.Run(style+"/"+strings.ReplaceAll(separator, " ", "_"), func(t *testing.T) {
-				m := dockMinimizedOS(t)
-				m.UserConfig = &config.UserConfig{Dock: config.DockConfig{
-					Windows: config.DockWindowsConfig{
-						Show: config.DockWindowsShowAll,
-						Style: style,
-						Grouped: false,
-						Separator: separator,
-						Format: "{index}",
-					},
-				}}
-				m.Windows[0].Minimized = false
-				m.FocusedWindow = 0
-				if got := m.dockWindowItemGap(); got != len(separator) {
-					t.Fatalf("layout gap %d != configured separator width %d", got, len(separator))
-				}
-				row := dockRow(t, m)
-				want := " 1 " + separator + " 2 "
-				if !strings.Contains(row, want) {
-					t.Fatalf("rendered window labels missing %q; row: %q", want, row)
-				}
-				if len(m.dockItemHits) != 2 {
-					t.Fatalf("expected two window hitboxes, got %d", len(m.dockItemHits))
-				}
-				a, b := m.dockItemHits[0], m.dockItemHits[1]
-				if gap := b.X0 - a.X1; gap != len(separator) {
-					t.Errorf("rendered gap %d != configured separator width %d", gap, len(separator))
-				}
-				for i, hit := range m.dockItemHits {
-					for x := hit.X0; x < hit.X1; x++ {
-						if got := m.DockItemAt(x, hit.Y); got != i {
-							t.Errorf("entry %d column %d targets window %d", i, x, got)
-						}
-					}
-				}
-				for x := a.X1; x < b.X0; x++ {
-					if got := m.DockItemAt(x, a.Y); got != -1 {
-						t.Errorf("separator column %d targets window %d", x, got)
-					}
-				}
-			})
-		}
-	}
+	t.Fatal("did not reach a partially visible grouped window strip")
 }
