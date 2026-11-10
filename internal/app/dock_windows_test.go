@@ -95,8 +95,8 @@ func TestDockWindowsLabels(t *testing.T) {
 
 	items := m.getDockItems()
 	for i, want := range []string{
-		"(1) vim @ /home/user/project",
-		"(2) notes @ /srv/notes",
+		"(1) vim @ project",
+		"(2) notes @ notes",
 	} {
 		if got := strings.TrimSpace(items[i].Label); got != want {
 			t.Errorf("window %d label = %q, want %q", i, got, want)
@@ -106,42 +106,39 @@ func TestDockWindowsLabels(t *testing.T) {
 
 func TestDockWindowsRendering(t *testing.T) {
 	for _, tc := range []struct {
-		name, style, separator string
-		grouped, caps          bool
-		want                   func(left, right string) string
+		name, style, separator, want string
+		grouped bool
 	}{
-		{"pill", config.DockTabStylePill, "", false, false,
-			func(l, r string) string { return l + " 1 " + r + l + " 2 " + r }},
-		{"flat", config.DockTabStyleFlat, "", false, false,
-			func(_, _ string) string { return " 1  2 " }},
-		{"flat/caps", config.DockTabStyleFlat, "|", false, true,
-			func(l, r string) string { return l + " 1 " + r + "|" + l + " 2 " + r }},
-		{"grouped/pill", config.DockTabStylePill, " ", true, true,
-			func(l, r string) string { return l + " 1 2 " + r }},
-		{"grouped/flat", config.DockTabStyleFlat, "|", true, true,
-			func(l, r string) string { return l + " 1|2 " + r }},
-		{"grouped/no-caps", config.DockTabStyleFlat, "", true, false,
-			func(_, _ string) string { return " 12 " }},
+		{"pill/individual", config.DockTabStylePill, "", "PILL 1 PILL 2", false},
+		{"pill/grouped", config.DockTabStylePill, " ", "GROUP 1 2", true},
+		{"pill/grouped/no-separator", config.DockTabStylePill, "", "GROUP 12", true},
+		{"flat/individual/no-separator", config.DockTabStyleFlat, "", "12", false},
+		{"flat/individual/separator", config.DockTabStyleFlat, " | ", "1 | 2", false},
+		{"flat/grouped", config.DockTabStyleFlat, " ", " 1 2 ", true},
+		{"flat/grouped/no-separator", config.DockTabStyleFlat, "", " 12 ", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			options := config.DockWindowsConfig{
+			m := dockWindowsOS(t, config.DockWindowsConfig{
 				Show: config.DockWindowsShowAll, Format: "{index}",
-				Style: tc.style, Grouped: tc.grouped, Caps: tc.caps,
-				Separator: tc.separator,
-			}
-			if tc.name == "flat/caps" {
-				// Inactive flat tabs without a background deliberately draw
-				// spaces instead of coloured cap glyphs.
-				options.InactiveBg = "panel"
-			}
-			m := dockWindowsOS(t, options)
+				Style: tc.style, Grouped: tc.grouped, Separator: tc.separator,
+			})
 			m.Settings.DockPillCaps = true
 			m.Windows[0].Minimized = false
 			m.FocusedWindow = 0
 
-			row := dockRow(t, m)
 			left, right := m.Settings.GetDockWorkspaceCapLeft(), m.Settings.GetDockWorkspaceCapRight()
-			want := tc.want(left, right)
+			want := tc.want
+			switch {
+			case strings.HasPrefix(want, "PILL"):
+				want = left + " 1 " + right + left + " 2 " + right
+			case strings.HasPrefix(want, "GROUP"):
+				if tc.separator == "" {
+					want = left + " 12 " + right
+				} else {
+					want = left + " 1 2 " + right
+				}
+			}
+			row := dockRow(t, m)
 			if !strings.Contains(row, want) {
 				t.Fatalf("expected window strip %q in rendered row %q", want, row)
 			}
@@ -156,7 +153,7 @@ func TestDockWindowsInteraction(t *testing.T) {
 	m := dockWindowsOS(t, config.DockWindowsConfig{
 		Show: config.DockWindowsShowAll, Format: "{index}",
 		Grouped: true, Style: config.DockTabStylePill,
-		Caps: true, Separator: " • ",
+		Separator: " • ",
 	})
 	m.Settings.DockPillCaps = true
 	m.Windows[0].Minimized = false
@@ -189,7 +186,7 @@ func TestDockWindowsOverflow(t *testing.T) {
 	m.Settings.DockPillCaps = true
 	m.UserConfig = &config.UserConfig{Dock: config.DockConfig{
 		Windows: config.DockWindowsConfig{
-			Grouped: true, Caps: true, Style: config.DockTabStylePill,
+			Grouped: true, Style: config.DockTabStylePill,
 			Format: "{index}", Separator: " ",
 		},
 	}}
