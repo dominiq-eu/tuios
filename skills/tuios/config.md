@@ -246,11 +246,14 @@ current row: `appearance.sidebar.row_style` (`bar`, `marker`, `underline`,
 The dock's `windows` component can also list every ordinary pane in the
 current workspace rather than only minimized panes. Set
 `[dock.windows] show = "all"`. The window entries use independent
-`style = "flat"` or `style = "pill"` and the same `separator`,
+`style = "pill"` (default) or `style = "flat"` and the same `separator`,
 `separator_fg`, `active_fg/bg/bold/underline`,
 `inactive_fg/bg/bold`, and `caps` keys as `[dock.tabs]`. An unset
 inactive flat background has no fill, while the focused pane uses the theme
-accent by default. Clicking focuses or restores the entry. With no
+accent by default. `format` supports `{index}`, `{title}` and `{cwd}`
+just as the pane title formatter does. Empty format keeps the historic
+number:title label. Pill cap shapes follow `appearance.dock_pill_caps`.
+Clicking focuses or restores the entry. With no
 `[dock.windows]` table, minimized entries keep their existing appearance.
 
 The dock's workspace tabs take two composition knobs of their own:
