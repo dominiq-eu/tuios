@@ -1,0 +1,79 @@
+# Preview builds for the dock window tabs feature. This is deliberately
+# separate from release.yml: its tag does not match the official v*.*.* pattern.
+name: Dock window tabs preview
+
+on:
+  push:
+    branches:
+      - feat/dock-window-tabs
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Unit tests
+        run: go test ./internal/config ./internal/app ./internal/input
+      - name: Build
+        run: go build ./cmd/tuios
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: darwin, goarch: arm64, archive: tuios-dock-preview_Darwin_arm64.tar.gz }
+          - { goos: darwin, goarch: amd64, archive: tuios-dock-preview_Darwin_x86_64.tar.gz }
+          - { goos: linux, goarch: amd64, archive: tuios-dock-preview_Linux_x86_64.tar.gz }
+          - { goos: linux, goarch: arm64, archive: tuios-dock-preview_Linux_arm64.tar.gz }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Build tuios
+        env:
+          CGO_ENABLED: "0"
+          GOWORK: "off"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          mkdir -p dist
+          go build -trimpath -ldflags "-s -w -X main.version=dock-preview" -o dist/tuios ./cmd/tuios
+          tar -czf "${{ matrix.archive }}" -C dist tuios
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive }}
+          path: ${{ matrix.archive }}
+          if-no-files-found: error
+
+  preview-release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: tuios-dock-preview_*
+          merge-multiple: true
+          path: release-assets
+      - name: Create fork-only prerelease for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="dock-tabs-preview-${GITHUB_SHA:0:12}"
+          gh release create "$tag" release-assets/*.tar.gz \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "Dock windows preview (${GITHUB_SHA:0:12})" \
+            --notes "Unvalidated preview of configurable dock window entries from feat/dock-window-tabs. Not an official tuios release."
