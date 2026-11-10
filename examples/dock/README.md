@@ -118,7 +118,7 @@ show             = "all"       # minimized (default) | all
 style            = "pill"      # pill (default) | flat
 grouped          = true        # draw one contiguous window strip (default: false)
 format           = "{index}: {title}"   # also supports {cwd}
-# separator affects flat entries or either style when grouped
+# separator controls the exact gap in either style, grouped or not
 separator        = ""
 active_bg        = "accent"
 active_bold      = true
@@ -139,7 +139,8 @@ In ungrouped mode, pill entries keep their existing individual caps and
 `caps` adds caps to individual flat entries. With `grouped = true`, either
 style forms one contiguous strip. `caps = true` draws only its outer ends;
 `caps = false` draws a square-ended strip. `separator` works with both
-styles when grouped, and defaults to no extra gap between padded segments.
+styles whether grouped or not. An empty separator adds zero columns between
+entries; individual ungrouped pills/flat tabs still retain their own inner padding.
 The outer glyphs follow `[appearance] dock_pill_caps = true`. Grouping and
 colors do not affect click targets, and group edges follow the last visible
 window if the dock overflows.
