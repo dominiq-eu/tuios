@@ -77,6 +77,7 @@ var lookFileKeys = map[string]lookFileKey{
 		Accepted: []string{"", DockWindowsShowMinimized, DockWindowsShowAll},
 		MaxBytes: lookMarkBytes,
 	},
+	"dock.windows.format": tabMarkKey("Window entry format: {index}, {title}, {cwd}; empty draws index:title"),
 	"dock.windows.style": {
 		Type: OptionString, Description: "How dock window entries are drawn: flat or pill",
 		Accepted: []string{"", DockTabStyleFlat, DockTabStylePill}, MaxBytes: lookMarkBytes,
