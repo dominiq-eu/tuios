@@ -72,6 +72,26 @@ var lookFileKeys = map[string]lookFileKey{
 	"dock.center": dockListKey("in the middle", defaultDockCenter),
 	"dock.right":  dockListKey("on the right end", defaultDockRight),
 
+	"dock.windows.show": {
+		Type: OptionString, Description: "Which workspace panes the dock lists: minimized or all",
+		Accepted: []string{"", DockWindowsShowMinimized, DockWindowsShowAll},
+		MaxBytes: lookMarkBytes,
+	},
+	"dock.windows.style": {
+		Type: OptionString, Description: "How dock window entries are drawn: flat or pill",
+		Accepted: []string{"", DockTabStyleFlat, DockTabStylePill}, MaxBytes: lookMarkBytes,
+	},
+	"dock.windows.separator": tabMarkKey("Text between flat dock window entries"),
+	"dock.windows.separator_fg": tabColourKey("Separator colour between dock window entries"),
+	"dock.windows.active_fg": tabColourKey("Text colour of the focused pane's dock entry"),
+	"dock.windows.active_bg": tabColourKey("Background colour of the focused pane's dock entry"),
+	"dock.windows.active_bold": {Type: OptionBool, Description: "Draw the focused flat window entry in bold", Default: "false"},
+	"dock.windows.active_underline": {Type: OptionBool, Description: "Underline the focused dock window entry"},
+	"dock.windows.inactive_fg": tabColourKey("Text colour of unfocused dock window entries"),
+	"dock.windows.inactive_bg": tabColourKey("Background colour of unfocused dock window entries"),
+	"dock.windows.inactive_bold": {Type: OptionBool, Description: "Draw unfocused dock window entries in bold", Default: "false"},
+	"dock.windows.caps": {Type: OptionBool, Description: "Draw rounded ends on flat dock window entries", Default: "false"},
+
 	"dock.tabs.style": {
 		Type: OptionString, Description: "How the workspace strip draws its tabs: pill, or flat for coloured runs of text",
 		Accepted: []string{"", DockTabStylePill, DockTabStyleFlat}, MaxBytes: lookMarkBytes,
