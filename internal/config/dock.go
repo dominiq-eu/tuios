@@ -238,6 +238,9 @@ type DockWindowsConfig struct {
 	// Format has the pane-title placeholders {index}, {title}, and {cwd}.
 	// Empty retains the established "index:title" label (or just index).
 	Format string `toml:"format,omitempty"`
+	// Grouped draws a contiguous window strip with one optional pair of caps.
+	// It is independent of the pill/flat style and is off by default.
+	Grouped bool `toml:"grouped,omitempty"`
 
 	Style           string `toml:"style,omitempty"`
 	Separator       string `toml:"separator,omitempty"`
@@ -657,10 +660,10 @@ func validateDock(cfg *UserConfig, result *ValidationResult) {
 			Message: fmt.Sprintf("style %q is not %s or %s; drawing pills", st, DockTabStylePill, DockTabStyleFlat),
 		})
 	}
-	if w.Caps && w.TabStyle().Style != DockTabStyleFlat {
+	if w.Caps && !w.Grouped && w.TabStyle().Style != DockTabStyleFlat {
 		result.Warnings = append(result.Warnings, ValidationError{
 			Field: "dock.windows", Key: "caps",
-			Message: "caps applies to flat entries only. A pill always has caps. Set style = \"flat\" to use it",
+			Message: "caps applies to flat entries or grouped window strips; set grouped = true or style = \"flat\" to use it",
 		})
 	}
 	validateDockColors(result, "dock.windows", map[string]string{
