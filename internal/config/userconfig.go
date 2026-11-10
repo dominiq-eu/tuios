@@ -2479,6 +2479,18 @@ func parseUserConfigOnce(data []byte) (*UserConfig, error) {
 	if err := toml.Unmarshal(data, &cfg); err != nil {
 		return nil, errfmt.Errorf("failed to parse config file: %w", err)
 	}
+	// A zero-valued [dock.windows] table must still activate its rendering
+	// rules. In particular, separator="" cannot be distinguished from an
+	// absent table by comparing only the decoded string fields.
+	var presence struct {
+		Dock struct {
+			Windows *struct{} `toml:"windows"`
+		} `toml:"dock"`
+	}
+	if err := toml.Unmarshal(data, &presence); err != nil {
+		return nil, errfmt.Errorf("failed to read dock table presence: %w", err)
+	}
+	cfg.Dock.Windows.Defined = presence.Dock.Windows != nil
 	// go-toml sets a quoted max_fps straight into the string field, past
 	// UnmarshalText, so the spelling is settled here for both forms.
 	cfg.Appearance.MaxFPS = cfg.Appearance.MaxFPS.canonical()
