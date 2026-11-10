@@ -997,22 +997,16 @@
       "default": ""
     },
     {
-      "path": "dock.windows.caps",
-      "type": "bool",
-      "description": "Draw rounded ends on flat entries or the outer edges of grouped windows",
-      "default": "false"
-    },
-    {
       "path": "dock.windows.format",
       "type": "string",
-      "description": "Window entry format: {index}, {title}, {cwd}; empty draws index:title",
+      "description": "Window entry format: {index}, {title}, {cwd} (directory name); empty draws index:title",
       "default": "",
       "max_bytes": 32
     },
     {
       "path": "dock.windows.grouped",
       "type": "bool",
-      "description": "Draw window entries as one continuous strip, with optional outer caps",
+      "description": "Draw window entries as one strip; pill style uses caps only at the outer edges",
       "default": "false"
     },
     {
@@ -1032,6 +1026,20 @@
       "path": "dock.windows.inactive_fg",
       "type": "string",
       "description": "Text colour of unfocused dock window entries",
+      "default": "",
+      "color": true
+    },
+    {
+      "path": "dock.windows.minimized_bg",
+      "type": "string",
+      "description": "Background colour of minimized window entries",
+      "default": "",
+      "color": true
+    },
+    {
+      "path": "dock.windows.minimized_fg",
+      "type": "string",
+      "description": "Text colour of minimized window entries (default: dim)",
       "default": "",
       "color": true
     },
