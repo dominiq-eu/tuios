@@ -77,8 +77,8 @@ var lookFileKeys = map[string]lookFileKey{
 		Accepted: []string{"", DockWindowsShowMinimized, DockWindowsShowAll},
 		MaxBytes: lookMarkBytes,
 	},
-	"dock.windows.format": tabMarkKey("Window entry format: {index}, {title}, {cwd}; empty draws index:title"),
-	"dock.windows.grouped": {Type: OptionBool, Description: "Draw window entries as one continuous strip, with optional outer caps", Default: "false"},
+	"dock.windows.format": tabMarkKey("Window entry format: {index}, {title}, {cwd} (directory name); empty draws index:title"),
+	"dock.windows.grouped": {Type: OptionBool, Description: "Draw window entries as one strip; pill style uses caps only at the outer edges", Default: "false"},
 	"dock.windows.style": {
 		Type: OptionString, Description: "How dock window entries are drawn: flat or pill",
 		Accepted: []string{"", DockTabStyleFlat, DockTabStylePill}, MaxBytes: lookMarkBytes,
@@ -92,8 +92,9 @@ var lookFileKeys = map[string]lookFileKey{
 	"dock.windows.inactive_fg": tabColourKey("Text colour of unfocused dock window entries"),
 	"dock.windows.inactive_bg": tabColourKey("Background colour of unfocused dock window entries"),
 	"dock.windows.inactive_bold": {Type: OptionBool, Description: "Draw unfocused dock window entries in bold", Default: "false"},
-	"dock.windows.caps": {Type: OptionBool, Description: "Draw rounded ends on flat entries or the outer edges of grouped windows", Default: "false"},
-
+	"dock.windows.minimized_fg": tabColourKey("Text colour of minimized window entries (default: dim)"),
+	"dock.windows.minimized_bg": tabColourKey("Background colour of minimized window entries"),
+	
 	"dock.tabs.style": {
 		Type: OptionString, Description: "How the workspace strip draws its tabs: pill, or flat for coloured runs of text",
 		Accepted: []string{"", DockTabStylePill, DockTabStyleFlat}, MaxBytes: lookMarkBytes,
