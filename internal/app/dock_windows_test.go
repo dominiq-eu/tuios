@@ -293,3 +293,54 @@ func TestDockGroupedWindowOverflowStillClosesTheVisibleStrip(t *testing.T) {
 	}
 	t.Fatal("test did not reach a partially truncated group")
 }
+
+func TestDockWindowsSeparatorIsExactWithoutGrouping(t *testing.T) {
+	// The previous shared tab-gap helper silently substituted one column
+	// for separator="" and ignored nonempty separators on pill entries.
+	// Both styles must use the literal separator, including the empty one.
+	for _, style := range []string{config.DockTabStyleFlat, config.DockTabStylePill} {
+		for _, separator := range []string{"", " ", " | "} {
+			t.Run(style+"/"+strings.ReplaceAll(separator, " ", "_"), func(t *testing.T) {
+				m := dockMinimizedOS(t)
+				m.UserConfig = &config.UserConfig{Dock: config.DockConfig{
+					Windows: config.DockWindowsConfig{
+						Show: config.DockWindowsShowAll,
+						Style: style,
+						Grouped: false,
+						Separator: separator,
+						Format: "{index}",
+					},
+				}}
+				m.Windows[0].Minimized = false
+				m.FocusedWindow = 0
+				if got := m.dockWindowItemGap(); got != len(separator) {
+					t.Fatalf("layout gap %d != configured separator width %d", got, len(separator))
+				}
+				row := dockRow(t, m)
+				want := " 1 " + separator + " 2 "
+				if !strings.Contains(row, want) {
+					t.Fatalf("rendered window labels missing %q; row: %q", want, row)
+				}
+				if len(m.dockItemHits) != 2 {
+					t.Fatalf("expected two window hitboxes, got %d", len(m.dockItemHits))
+				}
+				a, b := m.dockItemHits[0], m.dockItemHits[1]
+				if gap := b.X0 - a.X1; gap != len(separator) {
+					t.Errorf("rendered gap %d != configured separator width %d", gap, len(separator))
+				}
+				for i, hit := range m.dockItemHits {
+					for x := hit.X0; x < hit.X1; x++ {
+						if got := m.DockItemAt(x, hit.Y); got != i {
+							t.Errorf("entry %d column %d targets window %d", i, x, got)
+						}
+					}
+				}
+				for x := a.X1; x < b.X0; x++ {
+					if got := m.DockItemAt(x, a.Y); got != -1 {
+						t.Errorf("separator column %d targets window %d", x, got)
+					}
+				}
+			})
+		}
+	}
+}
