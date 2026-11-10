@@ -228,14 +228,22 @@ func dockTabGapText(t *config.DockTabsConfig, pal overlay.Palette) string {
 
 // dockWindowSeparatorText renders exactly the configured window separator.
 // Workspace tabs intentionally retain their legacy one-column fallback.
-func dockWindowSeparatorText(separator, foreground string, pal overlay.Palette) string {
+func dockWindowSeparatorText(separator, foreground, groupBackground string, grouped bool, pal overlay.Palette) string {
 	if separator == "" {
 		return ""
 	}
+	style := lipgloss.NewStyle()
 	if fg := tabColor(foreground, &pal); fg != nil {
-		return lipgloss.NewStyle().Foreground(fg).Render(separator)
+		style = style.Foreground(fg)
 	}
-	return separator
+	if grouped {
+		bg := tabColor(groupBackground, &pal)
+		if bg == nil {
+			bg = pal.Panel
+		}
+		style = style.Background(bg)
+	}
+	return style.Render(separator)
 }
 
 // groupedDockWindowSegment renders one clickable entry without individual caps.
@@ -440,34 +448,57 @@ func (m *OS) renderDockString() (string, int) {
 
 			var chunk string
 			if m.dockWindowStyled() {
-				// A grouped run has one optional cap at each outer edge;
-				// its segments share the normal pill/flat color painter but
-				// never receive per-window caps or extra inter-item padding.
+				// Pill caps follow style: one pair for a grouped run, one
+				// pair per pill when ungrouped. Flat windows never have caps.
 				cfg := m.dockWindowsConfig()
 				style := cfg.TabStyle()
+				// Visible inactive panes stay readable; minimized ones have
+				// their own dim default and optional colour overrides.
+				minimized := window.Minimized
+				active := !minimized && windowIndex == m.FocusedWindow
+				if minimized {
+					style.InactiveFg = cfg.MinimizedFg
+					if style.InactiveFg == "" {
+						style.InactiveFg = "dim"
+					}
+					if cfg.MinimizedBg != "" {
+						style.InactiveBg = cfg.MinimizedBg
+					}
+				}
+				if cfg.Grouped && style.Flat() && style.InactiveBg == "" {
+					// A grouped flat run has a shared panel ground, unlike
+					// separate flat text entries with no fill.
+					style.InactiveBg = "panel"
+				}
 				if itemNumber > 1 {
-					gap := dockWindowSeparatorText(cfg.Separator, cfg.SeparatorFg, pal)
+					gap := dockWindowSeparatorText(cfg.Separator, cfg.SeparatorFg,
+						cfg.InactiveBg, cfg.Grouped, pal)
 					dockItemsStr.WriteString(gap)
 					relX += lipgloss.Width(gap)
 				}
 				if cfg.Grouped {
 					var ground color.Color
 					chunk, ground = groupedDockWindowSegment(strings.TrimSpace(dockItem.Label),
-						itemNumber == 1, windowIndex == m.FocusedWindow, &style, pal)
-					if itemNumber == 1 && cfg.Caps {
+						itemNumber == 1, active, &style, pal)
+					if itemNumber == 1 && !style.Flat() {
 						chunk = groupedDockWindowCap(m.Settings.GetDockWorkspaceCapLeft(), ground, pal) + chunk
 					}
 					if itemNumber == len(layout.VisibleItems) {
-						// The trailing space and right cap belong to the last
-						// *visible* item, even when overflow hides later ones.
+						// End the group at its last *visible* window, even if
+						// other windows are hidden behind the overflow marker.
 						chunk += sidebarStyle(ground, nil).Render(" ")
-						if cfg.Caps {
+						if !style.Flat() {
 							chunk += groupedDockWindowCap(m.Settings.GetDockWorkspaceCapRight(), ground, pal)
 						}
 					}
+				} else if style.Flat() {
+					// Individual flat window labels have no implicit padding:
+					// separator="" must visibly join adjacent labels.
+					chunk, _ = flatTabBodyContent(strings.TrimSpace(dockItem.Label),
+						active, false, &style, pal, nil)
 				} else {
 					chunk = m.dockTab(&style, strings.TrimSpace(dockItem.Label),
-						windowIndex == m.FocusedWindow, false, false, pal)
+						active, false, false, pal)
 				}
 			} else {
 				// The unconfigured component retains the exact historical
