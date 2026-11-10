@@ -1003,6 +1003,13 @@
       "default": "false"
     },
     {
+      "path": "dock.windows.format",
+      "type": "string",
+      "description": "Window entry format: {index}, {title}, {cwd}; empty draws index:title",
+      "default": "",
+      "max_bytes": 32
+    },
+    {
       "path": "dock.windows.inactive_bg",
       "type": "string",
       "description": "Background colour of unfocused dock window entries",
