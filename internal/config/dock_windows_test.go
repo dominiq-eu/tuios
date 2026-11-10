@@ -1,14 +1,9 @@
 package config
 
-import (
-	"testing"
-
-	"github.com/pelletier/go-toml/v2"
-)
+import "testing"
 
 func TestDockWindowsConfiguration(t *testing.T) {
-	var cfg UserConfig
-	if err := toml.Unmarshal([]byte(`[dock.windows]
+	cfg, err := ParseUserConfig([]byte(`[dock.windows]
 show = "all"
 style = "pill"
 grouped = true
@@ -16,7 +11,8 @@ format = "{index}: {title} ({cwd})"
 separator = ""
 minimized_fg = "magenta"
 minimized_bg = "surface"
-`), &cfg); err != nil {
+`))
+	if err != nil {
 		t.Fatal(err)
 	}
 	w := cfg.Dock.Windows
