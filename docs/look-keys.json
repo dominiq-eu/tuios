@@ -971,6 +971,96 @@
       "max_bytes": 32
     },
     {
+      "path": "dock.windows.active_bg",
+      "type": "string",
+      "description": "Background colour of the focused pane's dock entry",
+      "default": "",
+      "color": true
+    },
+    {
+      "path": "dock.windows.active_bold",
+      "type": "bool",
+      "description": "Draw the focused flat window entry in bold",
+      "default": "false"
+    },
+    {
+      "path": "dock.windows.active_fg",
+      "type": "string",
+      "description": "Text colour of the focused pane's dock entry",
+      "default": "",
+      "color": true
+    },
+    {
+      "path": "dock.windows.active_underline",
+      "type": "bool",
+      "description": "Underline the focused dock window entry",
+      "default": ""
+    },
+    {
+      "path": "dock.windows.caps",
+      "type": "bool",
+      "description": "Draw rounded ends on flat dock window entries",
+      "default": "false"
+    },
+    {
+      "path": "dock.windows.inactive_bg",
+      "type": "string",
+      "description": "Background colour of unfocused dock window entries",
+      "default": "",
+      "color": true
+    },
+    {
+      "path": "dock.windows.inactive_bold",
+      "type": "bool",
+      "description": "Draw unfocused dock window entries in bold",
+      "default": "false"
+    },
+    {
+      "path": "dock.windows.inactive_fg",
+      "type": "string",
+      "description": "Text colour of unfocused dock window entries",
+      "default": "",
+      "color": true
+    },
+    {
+      "path": "dock.windows.separator",
+      "type": "string",
+      "description": "Text between flat dock window entries",
+      "default": "",
+      "max_bytes": 32
+    },
+    {
+      "path": "dock.windows.separator_fg",
+      "type": "string",
+      "description": "Separator colour between dock window entries",
+      "default": "",
+      "color": true
+    },
+    {
+      "path": "dock.windows.show",
+      "type": "string",
+      "description": "Which workspace panes the dock lists: minimized or all",
+      "default": "",
+      "accepted": [
+        "",
+        "minimized",
+        "all"
+      ],
+      "max_bytes": 32
+    },
+    {
+      "path": "dock.windows.style",
+      "type": "string",
+      "description": "How dock window entries are drawn: flat or pill",
+      "default": "",
+      "accepted": [
+        "",
+        "flat",
+        "pill"
+      ],
+      "max_bytes": 32
+    },
+    {
       "path": "motion.zoom",
       "type": "string",
       "description": "A pane slides between its tile and the zoom box: on or off",
