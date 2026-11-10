@@ -85,3 +85,60 @@ func TestDockWindowsFlatSeparatorKeepsClickableGeometry(t *testing.T) {
 		}
 	}
 }
+
+func TestDockWindowTitlesMatchSidebarTerminals(t *testing.T) {
+	m := dockMinimizedOS(t)
+	m.UserConfig = &config.UserConfig{
+		Dock: config.DockConfig{Windows: config.DockWindowsConfig{
+			Show: config.DockWindowsShowAll,
+			Format: "{index}: {title}",
+		}},
+	}
+	m.Windows[0].Minimized = false
+	m.Windows[0].CustomName = ""
+	m.Windows[0].ForegroundCmd = "vim"
+	m.Windows[1].CustomName = ""
+	m.Windows[1].ForegroundCmd = ""
+	m.Windows[1].SetTitle("")
+	for i, w := range m.Windows {
+		want := printableTitle(m.railTitleShown(w))
+		if want == "" {
+			want = "shell"
+		}
+		item := m.getDockItems()[i]
+		if item.Name != want {
+			t.Errorf("window %d dock name = %q, sidebar terminal name = %q", i, item.Name, want)
+		}
+		if !strings.Contains(item.Label, want) {
+			t.Errorf("window %d label %q does not include sidebar title %q", i, item.Label, want)
+		}
+	}
+	if got := m.getDockItems()[0].Name; got != "vim" {
+		t.Fatalf("foreground command is not the dock title: %q", got)
+	}
+	if got := m.getDockItems()[1].Name; got != "shell" {
+		t.Fatalf("unnamed terminal lacks sidebar fallback: %q", got)
+	}
+}
+
+func TestDockWindowTitleFollowsDebouncedSidebarTitle(t *testing.T) {
+	m := dockMinimizedOS(t)
+	m.UserConfig = &config.UserConfig{
+		Dock: config.DockConfig{Windows: config.DockWindowsConfig{
+			Show: config.DockWindowsShowAll, Format: "{title}",
+		}},
+	}
+	m.Windows[0].CustomName = ""
+	m.Windows[0].ForegroundCmd = ""
+	m.Windows[0].SetTitle("old")
+	m.updateRailTitles()
+	m.Windows[0].SetTitle("new")
+	if got := m.getDockItems()[0].Name; got != "old" {
+		t.Fatalf("dock jumped ahead of debounced sidebar title: %q", got)
+	}
+	backdate(m, m.Windows[0].ID, railTitleDebounce)
+	m.updateRailTitles()
+	if got := m.getDockItems()[0].Name; got != "new" {
+		t.Fatalf("dock did not follow updated sidebar title: %q", got)
+	}
+}
