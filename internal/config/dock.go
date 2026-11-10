@@ -235,6 +235,9 @@ func (t DockTabsConfig) Icon(n int) string {
 // vocabulary, but has its own values and defaults. The dock historically
 // lists minimized panes only; an empty Show preserves that behavior.
 type DockWindowsConfig struct {
+	// Defined records the presence of [dock.windows] even when all values are
+	// zero (notably separator = ""). It is not serialized into TOML.
+	Defined bool `toml:"-"`
 	Show string `toml:"show,omitempty"`
 	// Format has the pane-title placeholders {index}, {title}, and {cwd}.
 	// Empty retains the established "index:title" label (or just index).
