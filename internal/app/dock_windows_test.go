@@ -142,3 +142,37 @@ func TestDockWindowTitleFollowsDebouncedSidebarTitle(t *testing.T) {
 		t.Fatalf("dock did not follow updated sidebar title: %q", got)
 	}
 }
+
+func TestDockWindowCWDUsesPaneDirectory(t *testing.T) {
+	m := dockMinimizedOS(t)
+	m.UserConfig = &config.UserConfig{
+		Dock: config.DockConfig{Windows: config.DockWindowsConfig{
+			Show: config.DockWindowsShowAll, Format: "{cwd}",
+		}},
+	}
+	w := m.Windows[0]
+	w.CustomName = ""
+	w.ShellPgid = 0 // daemon panes may not have a process on the client
+	for _, tc := range []struct {
+		name, cwd, host, want string
+	}{
+		{"shell report", "/home/user/project", "", "/home/user/project"},
+		{"daemon-managed pane", "/srv/app", "", "/srv/app"},
+		{"remote pane", "/remote/repo", "build-host", "/remote/repo"},
+		{"unknown directory", "", "", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w.Cwd, w.Host = tc.cwd, tc.host
+			items := m.getDockItems()
+			if len(items) < 1 {
+				t.Fatal("missing window entry")
+			}
+			if got := items[0].CWD; got != tc.want {
+				t.Fatalf("CWD = %q, want %q", got, tc.want)
+			}
+			if got := strings.TrimSpace(items[0].Label); got != tc.want {
+				t.Fatalf("formatted label = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
