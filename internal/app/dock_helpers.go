@@ -1047,13 +1047,13 @@ func (m *OS) dockWindowStyled() bool {
 }
 
 func (m *OS) dockWindowItemGap() int {
-	if m.dockWindowsConfig().Grouped {
+	if m.dockWindowStyled() {
+		// Unlike workspace tabs, configured window entries honour even an
+		// explicitly empty separator. Their tab padding is measured within
+		// each entry, never counted as an inter-entry gap.
 		return lipgloss.Width(m.dockWindowsConfig().Separator)
 	}
-	if m.dockWindowStyled() {
-		style := m.dockWindowsConfig().TabStyle()
-		return dockTabGap(&style)
-	}
+	// No [dock.windows] table: retain the historical minimized-pill gap.
 	return 1
 }
 
