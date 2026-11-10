@@ -247,7 +247,8 @@ type DockWindowsConfig struct {
 	Grouped bool `toml:"grouped,omitempty"`
 
 	Style           string `toml:"style,omitempty"`
-	Separator       string `toml:"separator,omitempty"`
+	// Nil uses the default single-space gap; non-nil "" removes it.
+	Separator       *string `toml:"separator,omitempty"`
 	SeparatorFg     string `toml:"separator_fg,omitempty"`
 	ActiveFg        string `toml:"active_fg,omitempty"`
 	ActiveBg        string `toml:"active_bg,omitempty"`
@@ -285,6 +286,15 @@ func FormatDockWindowLabel(format, title string, index int, cwd string) string {
 	return expandTitle(format, title, index, cwd)
 }
 
+// SeparatorText returns the exact configured separator, or one space if the
+// key is absent. A pointer distinguishes omitted from separator = "" in TOML.
+func (w DockWindowsConfig) SeparatorText() string {
+	if w.Separator != nil {
+		return *w.Separator
+	}
+	return " "
+}
+
 // ShowAll reports whether the dock is a workspace window list.
 func (w DockWindowsConfig) ShowAll() bool {
 	return strings.TrimSpace(w.Show) == DockWindowsShowAll
@@ -309,7 +319,7 @@ func (w DockWindowsConfig) TabStyle() DockTabsConfig {
 		inactiveFg = "text"
 	}
 	return DockTabsConfig{
-		Style: style, Separator: w.Separator, SeparatorFg: w.SeparatorFg,
+		Style: style, Separator: w.SeparatorText(), SeparatorFg: w.SeparatorFg,
 		ActiveFg: w.ActiveFg, ActiveBg: activeBg, ActiveBold: w.ActiveBold,
 		ActiveUnderline: w.ActiveUnderline,
 		InactiveFg: inactiveFg, InactiveBg: w.InactiveBg,
