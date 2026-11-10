@@ -78,11 +78,12 @@ var lookFileKeys = map[string]lookFileKey{
 		MaxBytes: lookMarkBytes,
 	},
 	"dock.windows.format": tabMarkKey("Window entry format: {index}, {title}, {cwd}; empty draws index:title"),
+	"dock.windows.grouped": {Type: OptionBool, Description: "Draw window entries as one continuous strip, with optional outer caps", Default: "false"},
 	"dock.windows.style": {
 		Type: OptionString, Description: "How dock window entries are drawn: flat or pill",
 		Accepted: []string{"", DockTabStyleFlat, DockTabStylePill}, MaxBytes: lookMarkBytes,
 	},
-	"dock.windows.separator": tabMarkKey("Text between flat dock window entries"),
+	"dock.windows.separator": tabMarkKey("Text between flat or grouped dock window entries"),
 	"dock.windows.separator_fg": tabColourKey("Separator colour between dock window entries"),
 	"dock.windows.active_fg": tabColourKey("Text colour of the focused pane's dock entry"),
 	"dock.windows.active_bg": tabColourKey("Background colour of the focused pane's dock entry"),
@@ -91,7 +92,7 @@ var lookFileKeys = map[string]lookFileKey{
 	"dock.windows.inactive_fg": tabColourKey("Text colour of unfocused dock window entries"),
 	"dock.windows.inactive_bg": tabColourKey("Background colour of unfocused dock window entries"),
 	"dock.windows.inactive_bold": {Type: OptionBool, Description: "Draw unfocused dock window entries in bold", Default: "false"},
-	"dock.windows.caps": {Type: OptionBool, Description: "Draw rounded ends on flat dock window entries", Default: "false"},
+	"dock.windows.caps": {Type: OptionBool, Description: "Draw rounded ends on flat entries or the outer edges of grouped windows", Default: "false"},
 
 	"dock.tabs.style": {
 		Type: OptionString, Description: "How the workspace strip draws its tabs: pill, or flat for coloured runs of text",
