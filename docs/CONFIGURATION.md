@@ -1977,6 +1977,7 @@ workspace. A click on a visible pane focuses it; a minimized pane is restored.
 [dock.windows]
 show = "all"             # minimized (default) | all
 style = "pill"           # pill (configured default) | flat
+grouped = true            # one continuous window strip (default: false)
 format = "{index}: {title}"  # also supports {cwd}
 separator = " | "        # flat style only
 active_bg = "accent"
