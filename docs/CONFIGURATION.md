@@ -1969,50 +1969,57 @@ that comes due while the command runs is skipped.
 
 ### Dock window entries
 
-The `windows` component in the dock centre lists minimized panes by default.
-Set `[dock.windows] show = "all"` to include visible panes in the current
-workspace. Clicking a visible pane focuses it; a minimized pane is restored.
+The `windows` component lists minimized panes by default. Set `show = "all"`
+to include visible panes in the current workspace. Clicking a visible entry
+focuses it; clicking a minimized one restores it.
 
 ```toml
 [appearance]
-dock_pill_caps = true    # permit rounded pill glyphs
+dock_pill_caps = true     # allow rounded pill glyphs
 
 [dock.windows]
-show = "all"             # minimized (default) | all
-style = "pill"           # pill (configured default) | flat
-grouped = true           # one contiguous strip (default: false)
-format = "{index}"       # also supports {title}, {cwd}
-separator = ""           # exact inter-entry gap, including ungrouped entries
+show = "all"              # minimized (default) | all
+style = "pill"            # pill (configured default) | flat
+grouped = true            # one connected strip (default: false)
+format = "{index}: {cwd}" # {cwd} is the directory basename
+separator = " "           # exact inter-entry gap; "" joins adjacent labels
 active_bg = "accent"
-active_bold = true
-inactive_fg = "dim"
-caps = true              # rounded outer ends when grouped
+inactive_fg = "text"
+minimized_fg = "dim"      # defaults to dim; can use any supported colour
+# minimized_bg = "surface"
 ```
 
-The window styling keys follow the corresponding `[dock.tabs]` styling
-vocabulary, but the configurations are independent. Supported keys are
-`show`, `format`, `style`, `grouped`, `separator`, `separator_fg`,
-`active_fg`, `active_bg`, `active_bold`, `active_underline`,
-`inactive_fg`, `inactive_bg`, `inactive_bold` and `caps`. An unset
-inactive flat background has no fill; a focused pill uses the theme accent.
+Supported keys are `show`, `format`, `style`, `grouped`,
+`separator`, `separator_fg`, `active_fg`, `active_bg`, `active_bold`,
+`active_underline`, `inactive_fg`, `inactive_bg`, `inactive_bold`,
+`minimized_fg` and `minimized_bg`. Styles are independent of `[dock.tabs]`.
 
-`format` accepts `{index}` (entry number), `{title}` (the same resolved
-name as the sidebar's terminals section) and `{cwd}` (pane directory).
-An empty format renders the historic numeric prefix with its title.
+`format` accepts `{index}`, `{title}` (the sidebar terminal label) and
+`{cwd}` (the last component of the pane's current directory, even for remote
+paths). An empty format retains the established index/title label.
 
-By default, `grouped = false` preserves the individual pill/flat styling:
-`caps` only affects individual flat entries. With `grouped = true`, either
-style draws contiguous segments with independent focus and click targets.
-`caps = true` puts one pair of rounded ends on the entire *visible* run;
-`caps = false` leaves squared ends. The caps still obey the global
-`appearance.dock_pill_caps` setting and the terminal's glyph capabilities.
-`separator` works with either style whether grouped or not, and its
-value is rendered exactly: an empty separator adds no extra columns.
-Ungrouped entries still keep their own label padding. Narrow docks move the right
-cap onto the last visible entry, before the overflow marker.
+A visible focused entry uses active colors. Visible unfocused entries use
+ordinary text by default; minimized entries use dim text, independently of
+focus, and can override their foreground and background with `minimized_fg`
+and `minimized_bg`.
 
-Omitting `[dock.windows]` entirely preserves the historic minimized-only
-pill appearance. None of these options change `[dock.tabs]`.
+`style = "pill"` always uses rounded caps when enabled by
+`appearance.dock_pill_caps` and the terminal's glyph capabilities. With
+`grouped = false`, each pill has its own caps. With `grouped = true`,
+only the outer ends of the visible group have caps. `style = "flat"` never
+draws caps: ungrouped entries are bare text, while grouped entries share
+a panel background. There is no separate `dock.windows.caps` switch.
+The workspace tabs' own `caps` setting is unchanged.
+
+`separator` works with both styles in either grouping mode. The separator
+string is rendered exactly: `separator = ""` adds no gap. Ungrouped flat
+labels have no automatic inner padding; pill labels keep their own inner
+padding so their shapes remain readable. Grouped entries have one leading
+and trailing pad around the entire strip. The final cap remains with the
+last *visible* window if the dock overflows.
+
+If `[dock.windows]` is omitted, the historic minimized-only appearance is
+unchanged.
 
 ### Workspace tab style
 
