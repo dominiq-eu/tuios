@@ -23,6 +23,11 @@ type DockItem struct {
 	// rebuild it at a shorter length when the bar runs out of room.
 	Number int
 	Name   string
+	// Configured entries can rebuild a label from a shortened title without
+	// dropping the user's other format tokens.
+	Format     string
+	CWD        string
+	Configured bool
 }
 
 // DockLayout contains calculated layout information for the dock
@@ -1012,6 +1017,17 @@ func dockItemLabel(number int, name string) string {
 	return fmt.Sprintf(" %d ", number)
 }
 
+// dockWindowLabel renders one entry's body (including the historic padding).
+// The same function is used before and after truncation so each measured
+// width agrees with the string ultimately drawn.
+func dockWindowLabel(item DockItem, title string) string {
+	if !item.Configured {
+		return dockItemLabel(item.Number, title)
+	}
+	body := config.FormatDockWindowLabel(item.Format, title, item.Number, item.CWD)
+	return " " + printableTitle(body) + " "
+}
+
 // dockWindowsConfig returns the independent styling and behavior of window entries.
 func (m *OS) dockWindowsConfig() config.DockWindowsConfig {
 	if m.UserConfig == nil {
@@ -1059,17 +1075,28 @@ func (m *OS) getDockItems() []DockItem {
 	for _, windowIndex := range windows {
 		window := m.Windows[windowIndex]
 		number := len(items) + 1
-		label := dockItemLabel(number, window.CustomName)
+		title := printableTitle(window.CustomName)
+		if styled {
+			// paneName follows the title-bar policy: an explicit custom name
+			// wins, otherwise use the program's non-default terminal title.
+			title = paneName(window, &m.Settings)
+		}
+		item := DockItem{
+			WindowIndex: windowIndex, Number: number, Name: title,
+			Format: m.dockWindowsConfig().Format, Configured: styled,
+		}
+		if styled {
+			item.CWD = window.CWD()
+		}
+		label := dockWindowLabel(item, title)
 		width := lipgloss.Width(m.Settings.GetDockPillLeftChar()) +
 			lipgloss.Width(label) +
 			lipgloss.Width(m.Settings.GetDockPillRightChar())
 		if styled {
 			width = m.dockTabWidth(&style, strings.TrimSpace(label))
 		}
-		items = append(items, DockItem{
-			WindowIndex: windowIndex, Label: label, Width: width,
-			Number: number, Name: printableTitle(window.CustomName),
-		})
+		item.Label, item.Width = label, width
+		items = append(items, item)
 	}
 	return items
 }
@@ -1110,7 +1137,7 @@ func shortenDockItemNames(available int, allItems []DockItem, gap int) bool {
 	// circles it cannot lose plus a label rebuilt at that budget.
 	entryWidthAt := func(item DockItem, b int) int {
 		name := overlay.Truncate(item.Name, b)
-		return item.Width - lipgloss.Width(item.Label) + lipgloss.Width(dockItemLabel(item.Number, name))
+		return item.Width - lipgloss.Width(item.Label) + lipgloss.Width(dockWindowLabel(item, name))
 	}
 	named := 0
 	for _, item := range allItems {
@@ -1154,7 +1181,7 @@ func shortenDockItemNames(available int, allItems []DockItem, gap int) bool {
 	budget := lo
 	for i := range allItems {
 		item := &allItems[i]
-		label := dockItemLabel(item.Number, overlay.Truncate(item.Name, budget))
+		label := dockWindowLabel(*item, overlay.Truncate(item.Name, budget))
 		item.Width += lipgloss.Width(label) - lipgloss.Width(item.Label)
 		item.Label = label
 	}
