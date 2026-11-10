@@ -146,6 +146,9 @@ type DockConfig struct {
 	// Tabs is [dock.tabs]: how the workspace strip draws its tabs.
 	Tabs DockTabsConfig `toml:"tabs,omitempty"`
 
+	// Windows is [dock.windows]: filtering and presentation of dock window entries.
+	Windows DockWindowsConfig `toml:"windows,omitempty"`
+
 	// Session is [dock.session]: the "session" component's text and style.
 	Session DockSessionConfig `toml:"session,omitempty"`
 }
@@ -225,6 +228,51 @@ func (t DockTabsConfig) Icon(n int) string {
 		return t.NumberGlyphs[n-1]
 	}
 	return strconv.Itoa(n)
+}
+
+// DockWindowsConfig is [dock.windows]. It uses the workspace tab styling
+// vocabulary, but has its own values and defaults. The dock historically
+// lists minimized panes only; an empty Show preserves that behavior.
+type DockWindowsConfig struct {
+	Show string `toml:"show,omitempty"`
+
+	Style string `toml:"style,omitempty"`
+	Separator string `toml:"separator,omitempty"`
+	SeparatorFg string `toml:"separator_fg,omitempty"`
+	ActiveFg string `toml:"active_fg,omitempty"`
+	ActiveBg string `toml:"active_bg,omitempty"`
+	ActiveBold bool `toml:"active_bold,omitempty"`
+	ActiveUnderline *bool `toml:"active_underline,omitempty"`
+	InactiveFg string `toml:"inactive_fg,omitempty"`
+	InactiveBg string `toml:"inactive_bg,omitempty"`
+	InactiveBold bool `toml:"inactive_bold,omitempty"`
+	Caps bool `toml:"caps,omitempty"`
+}
+
+const (
+	DockWindowsShowMinimized = "minimized"
+	DockWindowsShowAll = "all"
+)
+
+// ShowAll reports whether the dock is a workspace window list.
+func (w DockWindowsConfig) ShowAll() bool {
+	return strings.TrimSpace(w.Show) == DockWindowsShowAll
+}
+
+// TabStyle adapts window styling to the existing dock-tab renderer. No new
+// palette rules, cap glyphs, or colour resolver are introduced.
+func (w DockWindowsConfig) TabStyle() DockTabsConfig {
+	style := strings.TrimSpace(w.Style)
+	if style == "" {
+		style = DockTabStyleFlat
+	}
+	return DockTabsConfig{
+		Style: style, Separator: w.Separator, SeparatorFg: w.SeparatorFg,
+		ActiveFg: w.ActiveFg, ActiveBg: w.ActiveBg, ActiveBold: w.ActiveBold,
+		ActiveUnderline: w.ActiveUnderline,
+		InactiveFg: w.InactiveFg, InactiveBg: w.InactiveBg,
+		InactiveBold: w.InactiveBold, Caps: w.Caps,
+	}
 }
 
 // DockCellStyle colours one dock cell. Every field is optional; a cell with
@@ -566,6 +614,29 @@ func validateDock(cfg *UserConfig, result *ValidationResult) {
 		"separator_fg": t.SeparatorFg, "active_fg": t.ActiveFg, "active_bg": t.ActiveBg,
 		"inactive_fg": t.InactiveFg, "inactive_bg": t.InactiveBg,
 		"attention_fg": t.AttentionFg,
+	})
+	w := cfg.Dock.Windows
+	if show := strings.TrimSpace(w.Show); show != "" && show != DockWindowsShowMinimized && show != DockWindowsShowAll {
+		result.Warnings = append(result.Warnings, ValidationError{
+			Field: "dock.windows", Key: "show",
+			Message: fmt.Sprintf("show %q is not %s or %s; showing minimized panes", show, DockWindowsShowMinimized, DockWindowsShowAll),
+		})
+	}
+	if st := strings.TrimSpace(w.Style); st != "" && st != DockTabStylePill && st != DockTabStyleFlat {
+		result.Warnings = append(result.Warnings, ValidationError{
+			Field: "dock.windows", Key: "style",
+			Message: fmt.Sprintf("style %q is not %s or %s; drawing flat entries", st, DockTabStylePill, DockTabStyleFlat),
+		})
+	}
+	if w.Caps && w.TabStyle().Style != DockTabStyleFlat {
+		result.Warnings = append(result.Warnings, ValidationError{
+			Field: "dock.windows", Key: "caps",
+			Message: "caps applies to flat entries only. A pill always has caps. Set style = \"flat\" to use it",
+		})
+	}
+	validateDockColors(result, "dock.windows", map[string]string{
+		"separator_fg": w.SeparatorFg, "active_fg": w.ActiveFg, "active_bg": w.ActiveBg,
+		"inactive_fg": w.InactiveFg, "inactive_bg": w.InactiveBg,
 	})
 	validateDockColors(result, "dock.session", map[string]string{
 		"fg": cfg.Dock.Session.Fg, "bg": cfg.Dock.Session.Bg,
