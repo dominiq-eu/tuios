@@ -109,50 +109,52 @@ key list is in
 
 ## Window entries
 
-The `windows` component shows minimized panes by default, preserving the
-existing dock behavior. To turn it into a window list for the current workspace:
+The `windows` component shows minimized panes by default. To list visible
+and minimized panes from the current workspace:
 
 ```toml
+[appearance]
+dock_pill_caps = true
+
 [dock.windows]
-show             = "all"       # minimized (default) | all
-style            = "pill"      # pill (default) | flat
-grouped          = true        # draw one contiguous window strip (default: false)
-format           = "{index}: {title}"   # also supports {cwd}
-# separator controls the exact gap in either style, grouped or not
-separator        = ""
-active_bg        = "accent"
-active_bold      = true
-inactive_fg      = "dim"
-caps             = true         # outer caps when grouped
+show         = "all"              # minimized (default) | all
+style        = "pill"             # pill (default) | flat
+grouped      = true               # one continuous strip (default: false)
+format       = "{index}: {cwd}"   # {cwd} is the current directory name
+separator    = " "                # "" joins labels with no added gap
+active_bg    = "accent"
+inactive_fg  = "text"
+minimized_fg = "dim"
+# minimized_bg = "surface"        # optional minimized entry background
 ```
 
-The styling keys follow the existing `[dock.tabs]` vocabulary, but the
-configurations are independent. Supported keys are `show`, `format`, `style`, `grouped`, `separator`,
-`separator_fg`, `active_fg`, `active_bg`, `active_bold`,
-`active_underline`, `inactive_fg`, `inactive_bg`,
-`inactive_bold`, and `caps`. Colours follow the theme; an unset
-inactive background in flat style has no fill. The pill style uses the theme
-accent for the focused pane by default. `format` accepts `{index}` (entry
-number), `{title}` (custom pane name, otherwise terminal title), and `{cwd}`
-(pane working directory). Empty format keeps the historic numeric prefix.
-In ungrouped mode, pill entries keep their existing individual caps and
-`caps` adds caps to individual flat entries. With `grouped = true`, either
-style forms one contiguous strip. `caps = true` draws only its outer ends;
-`caps = false` draws a square-ended strip. `separator` works with both
-styles whether grouped or not. An empty separator adds zero columns between
-entries; individual ungrouped pills/flat tabs still retain their own inner padding.
-The outer glyphs follow `[appearance] dock_pill_caps = true`. Grouping and
-colors do not affect click targets, and group edges follow the last visible
-window if the dock overflows.
+The window styling keys are `show`, `format`, `style`, `grouped`,
+`separator`, `separator_fg`, `active_fg`, `active_bg`,
+`active_bold`, `active_underline`, `inactive_fg`, `inactive_bg`,
+`inactive_bold`, `minimized_fg`, and `minimized_bg`. The focused window
+uses the active styling; minimized windows are dim by default and can be
+styled separately from other unfocused windows.
 
-The window list shows visible and minimized panes from the current workspace,
-excluding scratch panes and popups. Clicking a visible entry focuses it;
-clicking a minimized one restores it. Right-click opens the pane's own menu,
-or the existing restore menu for a minimized entry.
+`style = "pill"` draws rounded ends following
+`[appearance] dock_pill_caps = true`. Ungrouped pills each get a pair of
+caps; a grouped pill run gets just one pair around the whole strip.
+`style = "flat"` never gets caps. Flat ungrouped labels have no automatic
+inner padding, so `separator = ""` can display `12`; grouped flat entries
+share a panel background and a single outer pad. No extra `caps` option is
+needed under `[dock.windows]` (the workspace-tab `caps` option is separate).
 
-With no `[dock.windows]` section, existing minimized entry styling remains
-unchanged. Both styles reuse the workspace-tab palette and glyph handling,
-including ASCII and 16-colour terminal fallbacks.
+The `format` placeholders are `{index}`, `{title}` (the same resolved
+title as the sidebar's terminals section), and `{cwd}` (basename of the
+current directory). A missing format retains the legacy numeric/title label.
+The `separator` text is rendered exactly in both styles.
+
+The window list excludes scratch panes, popups, and windows from other
+workspaces. Clicking a visible entry focuses it; clicking a minimized one
+restores it. Right-click opens the pane's menu. When the dock runs out of
+space, the group closes around the last visible entry.
+
+With no `[dock.windows]` configuration, the historical minimized-pill
+rendering is preserved.
 
 ## Writing a component
 
