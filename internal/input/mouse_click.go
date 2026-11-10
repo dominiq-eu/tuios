@@ -240,14 +240,15 @@ func handleMouseClick(msg tea.MouseClickMsg, o *app.OS) (*app.OS, tea.Cmd) {
 			o.OpenAggregateView()
 			return o, nil
 		}
-		// Handle dock click only if there are minimized windows
-		if o.HasMinimizedWindows() {
-			dockIndex := o.DockItemAt(X, Y)
-			if dockIndex != -1 {
-				o.RestoreWindow(dockIndex)
-				// Retile if in tiling mode
-				if o.AutoTiling {
-					o.TileAllWindows()
+		// A dock entry can name either a visible pane or a minimized one.
+		// The hit rectangle is recorded by the renderer, so there is no
+		// separate window ordering or layout calculation on click.
+		if msg.Button == tea.MouseLeft {
+			if dockIndex := o.DockItemAt(X, Y); dockIndex >= 0 && dockIndex < len(o.Windows) {
+				if o.Windows[dockIndex].Minimized {
+					o.RestoreWindow(dockIndex)
+				} else {
+					o.FocusWindow(dockIndex)
 				}
 			}
 		}
