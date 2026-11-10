@@ -107,6 +107,38 @@ reports the first bell and the first output of such a pane, once. The full
 key list is in
 `docs/CONFIGURATION.md`.
 
+## Window entries
+
+The `windows` component shows minimized panes by default, preserving the
+existing dock behavior. To turn it into a window list for the current workspace:
+
+```toml
+[dock.windows]
+show             = "all"       # minimized (default) | all
+style            = "flat"      # flat (default for configured windows) | pill
+separator        = " | "
+active_bg        = "accent"
+active_bold      = true
+inactive_fg      = "dim"
+caps             = false
+```
+
+The styling keys follow the existing `[dock.tabs]` vocabulary, but the
+configurations are independent. Supported keys are `style`, `separator`,
+`separator_fg`, `active_fg`, `active_bg`, `active_bold`,
+`active_underline`, `inactive_fg`, `inactive_bg`,
+`inactive_bold`, and `caps`. Colours follow the theme; an unset
+inactive background in flat style has no fill.
+
+The window list shows visible and minimized panes from the current workspace,
+excluding scratch panes and popups. Clicking a visible entry focuses it;
+clicking a minimized one restores it. Right-click opens the pane's own menu,
+or the existing restore menu for a minimized entry.
+
+With no `[dock.windows]` section, existing minimized entry styling remains
+unchanged. Both styles reuse the workspace-tab palette and glyph handling,
+including ASCII and 16-colour terminal fallbacks.
+
 ## Writing a component
 
 ```toml
