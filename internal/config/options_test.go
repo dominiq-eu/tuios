@@ -26,6 +26,7 @@ var optionWalkSkips = map[string]string{
 	"dock.right":                       "an ordered list of component names, not a scalar path",
 	"dock.custom":                      "a free-form map of component name to its command and refresh",
 	"dock.tabs":                        "the workspace strip's look, a table edited in the file beside [dock.custom]; number_glyphs is a list a value arriving as one string cannot spell",
+	"dock.windows":                     "the dock window list's file-only style and visibility, edited beside [dock.tabs]; like tabs, its look keys are validated separately rather than exposed to pane set-option",
 	"dock.session":                     "the session cell's format and look, a table edited in the file beside [dock.custom]",
 	"hosts":                            "a map of host name to its address, which no single settable path can spell",
 	"notify":                           "where the Inbox's text goes and with which credentials, which a pane must not change over the control protocol",
