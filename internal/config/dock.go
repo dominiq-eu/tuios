@@ -236,22 +236,22 @@ func (t DockTabsConfig) Icon(n int) string {
 type DockWindowsConfig struct {
 	Show string `toml:"show,omitempty"`
 
-	Style string `toml:"style,omitempty"`
-	Separator string `toml:"separator,omitempty"`
-	SeparatorFg string `toml:"separator_fg,omitempty"`
-	ActiveFg string `toml:"active_fg,omitempty"`
-	ActiveBg string `toml:"active_bg,omitempty"`
-	ActiveBold bool `toml:"active_bold,omitempty"`
-	ActiveUnderline *bool `toml:"active_underline,omitempty"`
-	InactiveFg string `toml:"inactive_fg,omitempty"`
-	InactiveBg string `toml:"inactive_bg,omitempty"`
-	InactiveBold bool `toml:"inactive_bold,omitempty"`
-	Caps bool `toml:"caps,omitempty"`
+	Style           string `toml:"style,omitempty"`
+	Separator       string `toml:"separator,omitempty"`
+	SeparatorFg     string `toml:"separator_fg,omitempty"`
+	ActiveFg        string `toml:"active_fg,omitempty"`
+	ActiveBg        string `toml:"active_bg,omitempty"`
+	ActiveBold      bool   `toml:"active_bold,omitempty"`
+	ActiveUnderline *bool  `toml:"active_underline,omitempty"`
+	InactiveFg      string `toml:"inactive_fg,omitempty"`
+	InactiveBg      string `toml:"inactive_bg,omitempty"`
+	InactiveBold    bool   `toml:"inactive_bold,omitempty"`
+	Caps            bool   `toml:"caps,omitempty"`
 }
 
 const (
 	DockWindowsShowMinimized = "minimized"
-	DockWindowsShowAll = "all"
+	DockWindowsShowAll       = "all"
 )
 
 // ShowAll reports whether the dock is a workspace window list.
