@@ -471,7 +471,7 @@ func (m *OS) renderDockString() (string, int) {
 					style.InactiveBg = "panel"
 				}
 				if itemNumber > 1 {
-					gap := dockWindowSeparatorText(cfg.Separator, cfg.SeparatorFg,
+					gap := dockWindowSeparatorText(cfg.SeparatorText(), cfg.SeparatorFg,
 						cfg.InactiveBg, cfg.Grouped, pal)
 					dockItemsStr.WriteString(gap)
 					relX += lipgloss.Width(gap)
