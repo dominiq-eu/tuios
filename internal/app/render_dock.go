@@ -226,6 +226,18 @@ func dockTabGapText(t *config.DockTabsConfig, pal overlay.Palette) string {
 	return t.Separator
 }
 
+// dockWindowSeparatorText renders exactly the configured window separator.
+// Workspace tabs intentionally retain their legacy one-column fallback.
+func dockWindowSeparatorText(separator, foreground string, pal overlay.Palette) string {
+	if separator == "" {
+		return ""
+	}
+	if fg := tabColor(foreground, &pal); fg != nil {
+		return lipgloss.NewStyle().Foreground(fg).Render(separator)
+	}
+	return separator
+}
+
 // groupedDockWindowSegment renders one clickable entry without individual caps.
 // Leading padding is part of the entry; gaps and the final padding are managed
 // by the strip, not the tab painter.
@@ -433,15 +445,12 @@ func (m *OS) renderDockString() (string, int) {
 				// never receive per-window caps or extra inter-item padding.
 				cfg := m.dockWindowsConfig()
 				style := cfg.TabStyle()
+				if itemNumber > 1 {
+					gap := dockWindowSeparatorText(cfg.Separator, cfg.SeparatorFg, pal)
+					dockItemsStr.WriteString(gap)
+					relX += lipgloss.Width(gap)
+				}
 				if cfg.Grouped {
-					if itemNumber > 1 && cfg.Separator != "" {
-						gap := cfg.Separator
-						if ink := tabColor(cfg.SeparatorFg, &pal); ink != nil {
-							gap = lipgloss.NewStyle().Foreground(ink).Render(gap)
-						}
-						dockItemsStr.WriteString(gap)
-						relX += lipgloss.Width(gap)
-					}
 					var ground color.Color
 					chunk, ground = groupedDockWindowSegment(strings.TrimSpace(dockItem.Label),
 						itemNumber == 1, windowIndex == m.FocusedWindow, &style, pal)
@@ -457,11 +466,6 @@ func (m *OS) renderDockString() (string, int) {
 						}
 					}
 				} else {
-					if itemNumber > 1 {
-						gap := dockTabGapText(&style, pal)
-						dockItemsStr.WriteString(gap)
-						relX += lipgloss.Width(gap)
-					}
 					chunk = m.dockTab(&style, strings.TrimSpace(dockItem.Label),
 						windowIndex == m.FocusedWindow, false, false, pal)
 				}
