@@ -2011,8 +2011,9 @@ draws caps: ungrouped entries are bare text, while grouped entries share
 a panel background. There is no separate `dock.windows.caps` switch.
 The workspace tabs' own `caps` setting is unchanged.
 
-`separator` works with both styles in either grouping mode. The separator
-string is rendered exactly: `separator = ""` adds no gap. Ungrouped flat
+`separator` works with both styles in either grouping mode. If omitted,
+it defaults to one space; an explicit `separator = ""` adds no gap.
+Custom separator text is rendered exactly. Ungrouped flat
 labels have no automatic inner padding; pill labels keep their own inner
 padding so their shapes remain readable. Grouped entries have one leading
 and trailing pad around the entire strip. The final cap remains with the
