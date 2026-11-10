@@ -1971,33 +1971,47 @@ that comes due while the command runs is skipped.
 
 The `windows` component in the dock centre lists minimized panes by default.
 Set `[dock.windows] show = "all"` to include visible panes in the current
-workspace. A click on a visible pane focuses it; a minimized pane is restored.
+workspace. Clicking a visible pane focuses it; a minimized pane is restored.
 
 ```toml
+[appearance]
+dock_pill_caps = true    # permit rounded pill glyphs
+
 [dock.windows]
 show = "all"             # minimized (default) | all
 style = "pill"           # pill (configured default) | flat
-grouped = true            # one continuous window strip (default: false)
-format = "{index}: {title}"  # also supports {cwd}
-separator = " | "        # flat style only
+grouped = true           # one contiguous strip (default: false)
+format = "{index}"       # also supports {title}, {cwd}
+separator = ""           # optional between grouped entries
 active_bg = "accent"
 active_bold = true
 inactive_fg = "dim"
-caps = false
+caps = true              # rounded outer ends when grouped
 ```
 
-The window styling keys match the corresponding `[dock.tabs]` keys:
-`show`, `format`, `style`, `separator`, `separator_fg`, `active_fg`, `active_bg`,
-`active_bold`, `active_underline`, `inactive_fg`, `inactive_bg`,
-`inactive_bold`, and `caps`. The two sections are independent, but share
-the same theme colour and glyph handling. In flat style, an unset inactive
-background has no fill; the focused pill uses the theme accent by default.
-A window format accepts `{index}` (entry number), `{title}` (custom name or
-terminal title), and `{cwd}` (working directory). Empty format renders the
-historic numeric prefix. Rounded pill caps follow
-`[appearance] dock_pill_caps = true`; the `caps` property affects flat
-entries only. The established minimized-pill appearance remains unchanged if the entire
-`[dock.windows]` section is omitted.
+The window styling keys follow the corresponding `[dock.tabs]` styling
+vocabulary, but the configurations are independent. Supported keys are
+`show`, `format`, `style`, `grouped`, `separator`, `separator_fg`,
+`active_fg`, `active_bg`, `active_bold`, `active_underline`,
+`inactive_fg`, `inactive_bg`, `inactive_bold` and `caps`. An unset
+inactive flat background has no fill; a focused pill uses the theme accent.
+
+`format` accepts `{index}` (entry number), `{title}` (the same resolved
+name as the sidebar's terminals section) and `{cwd}` (pane directory).
+An empty format renders the historic numeric prefix with its title.
+
+By default, `grouped = false` preserves the individual pill/flat styling:
+`caps` only affects individual flat entries. With `grouped = true`, either
+style draws contiguous segments with independent focus and click targets.
+`caps = true` puts one pair of rounded ends on the entire *visible* run;
+`caps = false` leaves squared ends. The caps still obey the global
+`appearance.dock_pill_caps` setting and the terminal's glyph capabilities.
+For grouped entries, `separator` works with either style and defaults to
+no extra gap beyond each entry's leading space. Narrow docks move the right
+cap onto the last visible entry, before the overflow marker.
+
+Omitting `[dock.windows]` entirely preserves the historic minimized-only
+pill appearance. None of these options change `[dock.tabs]`.
 
 ### Workspace tab style
 
