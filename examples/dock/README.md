@@ -118,16 +118,16 @@ show             = "all"       # minimized (default) | all
 style            = "pill"      # pill (default) | flat
 grouped          = true        # draw one contiguous window strip (default: false)
 format           = "{index}: {title}"   # also supports {cwd}
-# separator only affects flat style
-separator        = " | "
+# separator affects flat entries or either style when grouped
+separator        = ""
 active_bg        = "accent"
 active_bold      = true
 inactive_fg      = "dim"
-caps             = false
+caps             = true         # outer caps when grouped
 ```
 
 The styling keys follow the existing `[dock.tabs]` vocabulary, but the
-configurations are independent. Supported keys are `show`, `format`, `style`, `separator`,
+configurations are independent. Supported keys are `show`, `format`, `style`, `grouped`, `separator`,
 `separator_fg`, `active_fg`, `active_bg`, `active_bold`,
 `active_underline`, `inactive_fg`, `inactive_bg`,
 `inactive_bold`, and `caps`. Colours follow the theme; an unset
@@ -135,8 +135,14 @@ inactive background in flat style has no fill. The pill style uses the theme
 accent for the focused pane by default. `format` accepts `{index}` (entry
 number), `{title}` (custom pane name, otherwise terminal title), and `{cwd}`
 (pane working directory). Empty format keeps the historic numeric prefix.
-Rounded caps in pill style also follow `[appearance] dock_pill_caps = true`;
-`caps` applies to flat entries only.
+In ungrouped mode, pill entries keep their existing individual caps and
+`caps` adds caps to individual flat entries. With `grouped = true`, either
+style forms one contiguous strip. `caps = true` draws only its outer ends;
+`caps = false` draws a square-ended strip. `separator` works with both
+styles when grouped, and defaults to no extra gap between padded segments.
+The outer glyphs follow `[appearance] dock_pill_caps = true`. Grouping and
+colors do not affect click targets, and group edges follow the last visible
+window if the dock overflows.
 
 The window list shows visible and minimized panes from the current workspace,
 excluding scratch panes and popups. Clicking a visible entry focuses it;
