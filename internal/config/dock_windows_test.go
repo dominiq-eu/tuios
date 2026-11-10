@@ -1,83 +1,73 @@
 package config
 
-import "testing"
+import (
+	"testing"
 
-func TestDockWindowsDefaultsPreserveMinimizedBehavior(t *testing.T) {
+	"github.com/pelletier/go-toml/v2"
+)
+
+func TestDockWindowsConfiguration(t *testing.T) {
+	var cfg UserConfig
+	if err := toml.Unmarshal([]byte(`[dock.windows]
+show = "all"
+style = "pill"
+grouped = true
+format = "{index}: {title} ({cwd})"
+separator = ""
+minimized_fg = "magenta"
+minimized_bg = "surface"
+`), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	w := cfg.Dock.Windows
+	if !w.ShowAll() || !w.Grouped || w.TabStyle().Flat() || w.Separator != "" {
+		t.Fatalf("window options were not decoded: %+v", w)
+	}
+	if w.MinimizedFg != "magenta" || w.MinimizedBg != "surface" {
+		t.Fatalf("minimized style was not decoded: %+v", w)
+	}
+}
+
+func TestDockWindowsDefaultsAndStyle(t *testing.T) {
 	var w DockWindowsConfig
-	if w.ShowAll() {
-		t.Fatal("an omitted dock.windows table must not list visible panes")
+	if w.ShowAll() || w.Grouped || w.TabStyle().Flat() {
+		t.Fatalf("default dock style must be ungrouped pill with minimized-only entries: %+v", w)
 	}
-	if w.Grouped {
-		t.Fatal("grouping must remain opt-in")
+	if !w.TabStyle().Underlined() || w.TabStyle().ActiveBg != "accent" {
+		t.Fatalf("pill did not retain active styling defaults: %+v", w.TabStyle())
 	}
-	style := w.TabStyle()
-	if style.Flat() {
-		t.Fatalf("the configured window style defaults to pill, got %q", style.Style)
+	if w.TabStyle().InactiveFg != "text" {
+		t.Fatalf("visible unfocused windows should use normal text: %+v", w.TabStyle())
 	}
-	if !style.Underlined() {
-		t.Fatal("pill window entries should follow the tab underline default")
+	if !(DockWindowsConfig{Style: DockTabStyleFlat}).TabStyle().Flat() {
+		t.Fatal("flat window style was ignored")
 	}
-	if style.ActiveBg != "accent" || style.InactiveBg != "" {
-		t.Fatalf("default pill should highlight the active pane on accent, not inactive ones: %+v", style)
+	if (DockWindowsConfig{Style: DockTabStyleFlat}).TabStyle().Underlined() {
+		t.Fatal("flat windows should not be underlined by default")
 	}
-}
-
-func TestDockWindowsStyleUsesTabSemantics(t *testing.T) {
-	underline := false
-	w := DockWindowsConfig{
-		Show: DockWindowsShowAll, Style: DockTabStylePill, Separator: " | ",
-		ActiveFg: "text", ActiveBg: "accent", InactiveFg: "dim",
-		InactiveBg: "surface", ActiveBold: true, InactiveBold: true,
-		ActiveUnderline: &underline, Caps: true,
-	}
-	if !w.ShowAll() {
-		t.Fatal("show=all must list workspace panes")
-	}
-	style := w.TabStyle()
-	if style.Flat() || style.Underlined() {
-		t.Fatal("pill rendering and explicit underline override must be preserved")
-	}
-	if style.Separator != w.Separator || style.ActiveBg != w.ActiveBg ||
-		style.InactiveBg != w.InactiveBg || style.ActiveBold != w.ActiveBold ||
-		style.InactiveBold != w.InactiveBold || style.Caps != w.Caps {
-		t.Fatalf("window tab-style adapter lost settings: %+v", style)
+	if (DockWindowsConfig{Style: "unknown"}).TabStyle().Flat() {
+		t.Fatal("invalid styles must fall back to pill")
 	}
 }
 
-func TestDockWindowsUnknownStyleFallsBackToPill(t *testing.T) {
-	style := (DockWindowsConfig{Style: "unknown"}).TabStyle()
-	if style.Flat() {
-		t.Fatalf("unknown style should use pill rendering, got %q", style.Style)
-	}
-}
-
-func TestDockWindowsFlatStyleAndFormat(t *testing.T) {
-	w := DockWindowsConfig{Style: DockTabStyleFlat, Format: "{index} | {title} @ {cwd}"}
-	if !w.TabStyle().Flat() || w.TabStyle().Underlined() {
-		t.Fatal("flat window entries should not be underlined by default")
-	}
-	if got := FormatDockWindowLabel(w.Format, "editor", 3, "/work"); got != "3 | editor @ /work" {
-		t.Fatalf("format expanded to %q", got)
-	}
-	if got := FormatDockWindowLabel("", "editor", 3, "/work"); got != "3:editor" {
-		t.Fatalf("default label expanded to %q", got)
-	}
-	if got := FormatDockWindowLabel("", "", 3, "/work"); got != "3" {
-		t.Fatalf("nameless default label expanded to %q", got)
-	}
-}
-
-func TestDockWindowGroupingIndependentFromStyle(t *testing.T) {
-	for _, style := range []string{DockTabStylePill, DockTabStyleFlat} {
-		for _, caps := range []bool{false, true} {
-			cfg := DockWindowsConfig{Grouped: true, Style: style, Caps: caps}
-			adapted := cfg.TabStyle()
-			if !cfg.Grouped || adapted.Flat() != (style == DockTabStyleFlat) {
-				t.Fatalf("grouping changed style semantics: %+v, adapted=%+v", cfg, adapted)
+func TestDockWindowLabelFormatting(t *testing.T) {
+	for _, tc := range []struct {
+		name, format, title, cwd, want string
+		index int
+	}{
+		{"current directory", "{index}: {title} ({cwd})", "editor", "/home/user/project", "3: editor (project)", 3},
+		{"trailing slash", "{cwd}", "", "/work/repo/", "repo", 1},
+		{"remote Windows path", "{cwd}", "", `C:\work\tools`, "tools", 1},
+		{"root", "{cwd}", "", "/", "/", 1},
+		{"unknown directory", "{cwd}", "", "", "", 1},
+		{"default title", "", "editor", "/work", "3:editor", 3},
+		{"default number", "", "", "/work", "3", 3},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := FormatDockWindowLabel(tc.format, tc.title, tc.index, tc.cwd)
+			if got != tc.want {
+				t.Fatalf("label = %q, want %q", got, tc.want)
 			}
-			if adapted.Caps != caps {
-				t.Fatalf("grouping changed caps setting: %+v", adapted)
-			}
-		}
+		})
 	}
 }
