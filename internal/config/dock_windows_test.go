@@ -29,6 +29,17 @@ minimized_bg = "surface"
 	if !empty.Dock.Windows.Defined || empty.Dock.Windows.Separator == nil || empty.Dock.Windows.SeparatorText() != "" {
 		t.Fatalf("an explicit empty separator must activate the windows table: %+v", empty.Dock.Windows)
 	}
+	serialized, err := MarshalUserConfig(empty)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reloaded, err := ParseUserConfig(serialized)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reloaded.Dock.Windows.Separator == nil || reloaded.Dock.Windows.SeparatorText() != "" {
+		t.Fatalf("config round trip dropped the explicitly empty separator: %+v", reloaded.Dock.Windows)
+	}
 	omitted, err := ParseUserConfig([]byte("[dock.windows]\nstyle = \"flat\"\n"))
 	if err != nil {
 		t.Fatal(err)
