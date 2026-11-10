@@ -999,7 +999,7 @@
     {
       "path": "dock.windows.caps",
       "type": "bool",
-      "description": "Draw rounded ends on flat dock window entries",
+      "description": "Draw rounded ends on flat entries or the outer edges of grouped windows",
       "default": "false"
     },
     {
@@ -1008,6 +1008,12 @@
       "description": "Window entry format: {index}, {title}, {cwd}; empty draws index:title",
       "default": "",
       "max_bytes": 32
+    },
+    {
+      "path": "dock.windows.grouped",
+      "type": "bool",
+      "description": "Draw window entries as one continuous strip, with optional outer caps",
+      "default": "false"
     },
     {
       "path": "dock.windows.inactive_bg",
@@ -1032,7 +1038,7 @@
     {
       "path": "dock.windows.separator",
       "type": "string",
-      "description": "Text between flat dock window entries",
+      "description": "Text between flat or grouped dock window entries",
       "default": "",
       "max_bytes": 32
     },
