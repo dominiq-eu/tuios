@@ -186,6 +186,8 @@ func TestDockGroupedWindowsLayoutAndHitTargets(t *testing.T) {
 		{"pill/caps", config.DockTabStylePill, "", true},
 		{"flat/no-caps", config.DockTabStyleFlat, "", false},
 		{"flat/caps", config.DockTabStyleFlat, "", true},
+		{"flat/space-separator", config.DockTabStyleFlat, " ", true},
+		{"pill/space-separator", config.DockTabStylePill, " ", true},
 		{"flat/separator", config.DockTabStyleFlat, "|", true},
 		{"pill/separator", config.DockTabStylePill, "|", true},
 	} {
@@ -210,7 +212,9 @@ func TestDockGroupedWindowsLayoutAndHitTargets(t *testing.T) {
 				left = m.Settings.GetDockWorkspaceCapLeft()
 				right = m.Settings.GetDockWorkspaceCapRight()
 			}
-			want := left + " 1" + tc.separator + " 2 " + right
+			// No implicit space: only the first label has the group's
+			// opening padding. In particular, separator="" renders "12".
+			want := left + " 1" + tc.separator + "2 " + right
 			row := dockRow(t, m)
 			if !strings.Contains(row, want) {
 				t.Fatalf("grouped strip should draw %q, got:\n%s", want, row)
@@ -227,6 +231,9 @@ func TestDockGroupedWindowsLayoutAndHitTargets(t *testing.T) {
 			}
 			if h1.X0-h0.X1 != len(tc.separator) {
 				t.Errorf("separator width = %d, want %d", h1.X0-h0.X1, len(tc.separator))
+			}
+			if tc.separator == "" && h0.X1 != h1.X0 {
+				t.Fatal("empty separator must make adjacent window hitboxes contiguous")
 			}
 			for i, hit := range m.dockItemHits {
 				if hit.WindowIndex != i {
