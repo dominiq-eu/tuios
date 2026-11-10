@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"path"
 	"slices"
 	"sort"
 	"strconv"
@@ -252,7 +253,9 @@ type DockWindowsConfig struct {
 	InactiveFg      string `toml:"inactive_fg,omitempty"`
 	InactiveBg      string `toml:"inactive_bg,omitempty"`
 	InactiveBold    bool   `toml:"inactive_bold,omitempty"`
-	Caps            bool   `toml:"caps,omitempty"`
+	// Minimized panes use dim text by default, independently of focused/visible states.
+	MinimizedFg string `toml:"minimized_fg,omitempty"`
+	MinimizedBg string `toml:"minimized_bg,omitempty"`
 }
 
 const (
@@ -269,6 +272,12 @@ func FormatDockWindowLabel(format, title string, index int, cwd string) string {
 			return strconv.Itoa(index)
 		}
 		return fmt.Sprintf("%d:%s", index, title)
+	}
+	// A window dock entry is a short navigation label: {cwd} names the
+	// current directory, not the full path. Normalize remote Windows paths
+	// on every host before taking the basename.
+	if cwd != "" {
+		cwd = path.Base(path.Clean(strings.ReplaceAll(cwd, "\\", "/")))
 	}
 	return expandTitle(format, title, index, cwd)
 }
@@ -290,12 +299,18 @@ func (w DockWindowsConfig) TabStyle() DockTabsConfig {
 	if activeBg == "" && style == DockTabStylePill {
 		activeBg = "accent"
 	}
+	inactiveFg := w.InactiveFg
+	if inactiveFg == "" {
+		// Ordinary visible windows must remain distinct from minimized ones,
+		// whose default ink is dim even when they are not focused.
+		inactiveFg = "text"
+	}
 	return DockTabsConfig{
 		Style: style, Separator: w.Separator, SeparatorFg: w.SeparatorFg,
 		ActiveFg: w.ActiveFg, ActiveBg: activeBg, ActiveBold: w.ActiveBold,
 		ActiveUnderline: w.ActiveUnderline,
-		InactiveFg: w.InactiveFg, InactiveBg: w.InactiveBg,
-		InactiveBold: w.InactiveBold, Caps: w.Caps,
+		InactiveFg: inactiveFg, InactiveBg: w.InactiveBg,
+		InactiveBold: w.InactiveBold,
 	}
 }
 
@@ -660,15 +675,10 @@ func validateDock(cfg *UserConfig, result *ValidationResult) {
 			Message: fmt.Sprintf("style %q is not %s or %s; drawing pills", st, DockTabStylePill, DockTabStyleFlat),
 		})
 	}
-	if w.Caps && !w.Grouped && w.TabStyle().Style != DockTabStyleFlat {
-		result.Warnings = append(result.Warnings, ValidationError{
-			Field: "dock.windows", Key: "caps",
-			Message: "caps applies to flat entries or grouped window strips; set grouped = true or style = \"flat\" to use it",
-		})
-	}
 	validateDockColors(result, "dock.windows", map[string]string{
 		"separator_fg": w.SeparatorFg, "active_fg": w.ActiveFg, "active_bg": w.ActiveBg,
 		"inactive_fg": w.InactiveFg, "inactive_bg": w.InactiveBg,
+		"minimized_fg": w.MinimizedFg, "minimized_bg": w.MinimizedBg,
 	})
 	validateDockColors(result, "dock.session", map[string]string{
 		"fg": cfg.Dock.Session.Fg, "bg": cfg.Dock.Session.Bg,
