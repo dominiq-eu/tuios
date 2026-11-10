@@ -116,6 +116,7 @@ existing dock behavior. To turn it into a window list for the current workspace:
 [dock.windows]
 show             = "all"       # minimized (default) | all
 style            = "pill"      # pill (default) | flat
+grouped          = true        # draw one contiguous window strip (default: false)
 format           = "{index}: {title}"   # also supports {cwd}
 # separator only affects flat style
 separator        = " | "
