@@ -11,6 +11,11 @@ on:
 permissions:
   contents: write
 
+# A new commit supersedes older preview builds; only its binaries are useful.
+concurrency:
+  group: dock-window-preview-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
