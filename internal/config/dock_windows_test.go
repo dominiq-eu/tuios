@@ -16,7 +16,7 @@ minimized_bg = "surface"
 		t.Fatal(err)
 	}
 	w := cfg.Dock.Windows
-	if !w.ShowAll() || !w.Grouped || w.TabStyle().Flat() || w.Separator != "" {
+	if !w.ShowAll() || !w.Grouped || w.TabStyle().Flat() || w.SeparatorText() != "" {
 		t.Fatalf("window options were not decoded: %+v", w)
 	}
 	if w.MinimizedFg != "magenta" || w.MinimizedBg != "surface" {
@@ -26,8 +26,22 @@ minimized_bg = "surface"
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !empty.Dock.Windows.Defined || empty.Dock.Windows.Separator != "" {
+	if !empty.Dock.Windows.Defined || empty.Dock.Windows.Separator == nil || empty.Dock.Windows.SeparatorText() != "" {
 		t.Fatalf("an explicit empty separator must activate the windows table: %+v", empty.Dock.Windows)
+	}
+	omitted, err := ParseUserConfig([]byte("[dock.windows]\nstyle = \"flat\"\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !omitted.Dock.Windows.Defined || omitted.Dock.Windows.Separator != nil || omitted.Dock.Windows.SeparatorText() != " " {
+		t.Fatalf("omitting separator must use one space: %+v", omitted.Dock.Windows)
+	}
+	custom, err := ParseUserConfig([]byte("[dock.windows]\nseparator = \" | \"\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if custom.Dock.Windows.SeparatorText() != " | " {
+		t.Fatalf("custom separator should survive parsing: %+v", custom.Dock.Windows)
 	}
 	absent, err := ParseUserConfig([]byte("[dock.tabs]\nstyle = \"flat\"\n"))
 	if err != nil {
