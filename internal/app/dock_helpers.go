@@ -1091,7 +1091,10 @@ func (m *OS) getDockItems() []DockItem {
 			Format: m.dockWindowsConfig().Format, Configured: styled,
 		}
 		if styled {
-			item.CWD = window.CWD()
+			// Read the pane directory from the same source as the files
+			// section. Daemon-managed panes often have no local ShellPgid,
+			// even when their shell or daemon has reported a directory.
+			item.CWD = m.paneDir(window)
 		}
 		label := dockWindowLabel(item, title)
 		width := lipgloss.Width(m.Settings.GetDockPillLeftChar()) +
