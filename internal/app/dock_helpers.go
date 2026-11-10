@@ -1077,9 +1077,14 @@ func (m *OS) getDockItems() []DockItem {
 		number := len(items) + 1
 		title := printableTitle(window.CustomName)
 		if styled {
-			// paneName follows the title-bar policy: an explicit custom name
-			// wins, otherwise use the program's non-default terminal title.
-			title = paneName(window, &m.Settings)
+			// A configured dock shows the same name as the sidebar's terminals
+			// section, not the pane-border title. This includes the foreground
+			// command and the daemon's latest title for unwatched windows.
+			title = printableTitle(m.railTitleShown(window))
+			if title == "" {
+				// The sidebar uses the same fallback for an empty title.
+				title = "shell"
+			}
 		}
 		item := DockItem{
 			WindowIndex: windowIndex, Number: number, Name: title,
