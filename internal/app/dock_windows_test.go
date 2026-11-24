@@ -188,6 +188,57 @@ func TestDockWindowsRendering(t *testing.T) {
 		}
 	})
 
+	t.Run("group-size", func(t *testing.T) {
+		for _, tc := range []struct {
+			name string
+			count int
+			flat bool
+			want string
+		}{
+			{"pill/one", 1, false, " 1 "},
+			{"pill/three", 3, false, " 1  2  3 "},
+			{"pill/four", 4, false, " 1  2  3  4 "},
+			{"flat/one", 1, true, " 1 "},
+			{"flat/three", 3, true, " 1  2  3 "},
+			{"flat/four", 4, true, " 1  2  3  4 "},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				style := config.DockTabStylePill
+				if tc.flat {
+					style = config.DockTabStyleFlat
+				}
+				m := dockWindowsOS(t, config.DockWindowsConfig{
+					Show: config.DockWindowsShowAll, Format: "{index}",
+					Style: style, Grouped: true, Separator: dockSeparator(""),
+				})
+				m.Settings.DockPillCaps = true
+				for len(m.Windows) < tc.count {
+					w := newTestWindow(t, "extra", 60, 20)
+					w.Workspace = 1
+					m.Windows = append(m.Windows, w)
+				}
+				m.Windows = m.Windows[:tc.count]
+				m.Windows[0].Minimized = false
+				m.FocusedWindow = 0
+
+				want := tc.want
+				if !tc.flat {
+					want = m.Settings.GetDockWorkspaceCapLeft() + want +
+						m.Settings.GetDockWorkspaceCapRight()
+				}
+				row := dockRow(t, m)
+				if !strings.Contains(row, want) {
+					t.Fatalf("expected %q in rendered row %q", want, row)
+				}
+				windows := make([]int, tc.count)
+				for i := range windows {
+					windows[i] = i
+				}
+				assertDockWindowHits(t, m, windows...)
+			})
+		}
+	})
+
 	t.Run("minimized-colors", func(t *testing.T) {
 		m := dockWindowsOS(t, config.DockWindowsConfig{
 			Show: config.DockWindowsShowAll, Format: "{index}",
@@ -232,7 +283,7 @@ func TestDockWindowsInteraction(t *testing.T) {
 
 	row := dockRow(t, m)
 	left, right := m.Settings.GetDockWorkspaceCapLeft(), m.Settings.GetDockWorkspaceCapRight()
-	strip := left + " 1  " + " • " + " 2 " + right
+	strip := left + " 1 " + " • " + " 2 " + right
 	start := strings.Index(row, strip)
 	if start < 0 {
 		t.Fatalf("expected window strip %q in rendered row %q", strip, row)
