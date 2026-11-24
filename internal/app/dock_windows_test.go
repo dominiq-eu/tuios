@@ -213,7 +213,8 @@ func TestDockWindowsRendering(t *testing.T) {
 				})
 				m.Settings.DockPillCaps = true
 				for len(m.Windows) < tc.count {
-					w := newTestWindow(t, "extra", 60, 20)
+					id := []string{"third", "fourth"}[len(m.Windows)-2]
+					w := newTestWindow(t, id, 60, 20)
 					w.Workspace = 1
 					m.Windows = append(m.Windows, w)
 				}
