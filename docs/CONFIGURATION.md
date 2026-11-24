@@ -1982,7 +1982,7 @@ show = "all"              # minimized (default) | all
 style = "pill"            # pill (configured default) | flat
 grouped = true            # one connected strip (default: false)
 format = "{index}: {cwd}" # {cwd} is the directory basename
-separator = " "           # exact inter-entry gap; "" joins adjacent labels
+separator = ""            # no extra separator; still pads each entry
 active_bg = "accent"
 inactive_fg = "text"
 minimized_fg = "dim"      # defaults to dim; can use any supported colour
@@ -2013,10 +2013,13 @@ The workspace tabs' own `caps` setting is unchanged.
 
 `separator` works with both styles in either grouping mode. If omitted,
 it defaults to one space; an explicit `separator = ""` adds no gap.
-Custom separator text is rendered exactly. Ungrouped flat
-labels have no automatic inner padding; pill labels keep their own inner
-padding so their shapes remain readable. Grouped entries have one leading
-and trailing pad around the entire strip. The final cap remains with the
+Custom separator text is rendered exactly *between* padded window segments.
+Every configured window renders as `" " + {format} + " "`, regardless of
+style or grouping. Both spaces take the window's own focus/minimized colors.
+Grouping only removes the individual pill caps and draws one pair around the
+visible run. Thus with `format = "{index}"`, `style = "pill"`, and three
+grouped windows, `separator = ""` draws `🯩 1  2  3 🯫`, while
+`separator = " "` draws `🯩 1   2   3 🯫`. The final cap stays with the
 last *visible* window if the dock overflows.
 
 If `[dock.windows]` is omitted, the historic minimized-only appearance is
