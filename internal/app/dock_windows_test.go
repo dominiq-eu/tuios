@@ -117,17 +117,37 @@ func TestDockWindowsLabels(t *testing.T) {
 }
 
 func TestDockWindowsRendering(t *testing.T) {
+	// The three separator spellings are literal text *between* identical
+	// padded window segments. Grouping changes only the number of pill caps.
 	for _, tc := range []struct {
-		name, style, separator, want string
+		name, style, separator string
 		grouped bool
+		want func(left, right string) string
 	}{
-		{"pill/individual", config.DockTabStylePill, "", "PILL 1 PILL 2", false},
-		{"pill/grouped", config.DockTabStylePill, " ", "GROUP 1 2", true},
-		{"pill/grouped/no-separator", config.DockTabStylePill, "", "GROUP 12", true},
-		{"flat/individual/no-separator", config.DockTabStyleFlat, "", "12", false},
-		{"flat/individual/separator", config.DockTabStyleFlat, " | ", "1 | 2", false},
-		{"flat/grouped", config.DockTabStyleFlat, " ", " 1 2 ", true},
-		{"flat/grouped/no-separator", config.DockTabStyleFlat, "", " 12 ", true},
+		{"pill/individual/empty", config.DockTabStylePill, "", false,
+			func(l, r string) string { return l + " 1 " + r + l + " 2 " + r }},
+		{"pill/individual/space", config.DockTabStylePill, " ", false,
+			func(l, r string) string { return l + " 1 " + r + " " + l + " 2 " + r }},
+		{"pill/individual/dash", config.DockTabStylePill, " - ", false,
+			func(l, r string) string { return l + " 1 " + r + " - " + l + " 2 " + r }},
+		{"pill/grouped/empty", config.DockTabStylePill, "", true,
+			func(l, r string) string { return l + " 1  2 " + r }},
+		{"pill/grouped/space", config.DockTabStylePill, " ", true,
+			func(l, r string) string { return l + " 1   2 " + r }},
+		{"pill/grouped/dash", config.DockTabStylePill, " - ", true,
+			func(l, r string) string { return l + " 1  -  2 " + r }},
+		{"flat/individual/empty", config.DockTabStyleFlat, "", false,
+			func(_, _ string) string { return " 1  2 " }},
+		{"flat/individual/space", config.DockTabStyleFlat, " ", false,
+			func(_, _ string) string { return " 1   2 " }},
+		{"flat/individual/dash", config.DockTabStyleFlat, " - ", false,
+			func(_, _ string) string { return " 1  -  2 " }},
+		{"flat/grouped/empty", config.DockTabStyleFlat, "", true,
+			func(_, _ string) string { return " 1  2 " }},
+		{"flat/grouped/space", config.DockTabStyleFlat, " ", true,
+			func(_, _ string) string { return " 1   2 " }},
+		{"flat/grouped/dash", config.DockTabStyleFlat, " - ", true,
+			func(_, _ string) string { return " 1  -  2 " }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			m := dockWindowsOS(t, config.DockWindowsConfig{
@@ -139,22 +159,18 @@ func TestDockWindowsRendering(t *testing.T) {
 			m.FocusedWindow = 0
 
 			left, right := m.Settings.GetDockWorkspaceCapLeft(), m.Settings.GetDockWorkspaceCapRight()
-			want := tc.want
-			switch {
-			case strings.HasPrefix(want, "PILL"):
-				want = left + " 1 " + right + left + " 2 " + right
-			case strings.HasPrefix(want, "GROUP"):
-				if tc.separator == "" {
-					want = left + " 12 " + right
-				} else {
-					want = left + " 1 2 " + right
-				}
-			}
+			want := tc.want(left, right)
 			row := dockRow(t, m)
 			if !strings.Contains(row, want) {
 				t.Fatalf("expected window strip %q in rendered row %q", want, row)
 			}
 			assertDockWindowHits(t, m, 0, 1)
+			if gap := m.dockItemHits[1].X0 - m.dockItemHits[0].X1; gap != lipgloss.Width(tc.separator) {
+				t.Errorf("separator occupies %d columns, want %d", gap, lipgloss.Width(tc.separator))
+			}
+			if got := lipgloss.Width(row); got > m.Width {
+				t.Errorf("rendered dock width %d exceeds terminal width %d", got, m.Width)
+			}
 		})
 	}
 	t.Run("omitted-separator", func(t *testing.T) {
@@ -164,8 +180,8 @@ func TestDockWindowsRendering(t *testing.T) {
 		})
 		m.Windows[0].Minimized = false
 		row := dockRow(t, m)
-		if !strings.Contains(row, "1 2") {
-			t.Fatalf("omitted separator must use the default space: %q", row)
+		if !strings.Contains(row, " 1   2 ") {
+			t.Fatalf("omitted separator must add one space to padded entries: %q", row)
 		}
 		if len(m.dockItemHits) != 2 || m.dockItemHits[1].X0-m.dockItemHits[0].X1 != 1 {
 			t.Fatalf("omitted separator should take exactly one cell; hits=%+v", m.dockItemHits)
@@ -216,13 +232,13 @@ func TestDockWindowsInteraction(t *testing.T) {
 
 	row := dockRow(t, m)
 	left, right := m.Settings.GetDockWorkspaceCapLeft(), m.Settings.GetDockWorkspaceCapRight()
-	strip := left + " 1 • 2 " + right
+	strip := left + " 1  " + " • " + " 2 " + right
 	start := strings.Index(row, strip)
 	if start < 0 {
 		t.Fatalf("expected window strip %q in rendered row %q", strip, row)
 	}
 	x0 := lipgloss.Width(row[:start])
-	firstEnd := x0 + lipgloss.Width(left+" 1")
+	firstEnd := x0 + lipgloss.Width(left+" 1 ")
 	secondStart := firstEnd + lipgloss.Width(" • ")
 	secondEnd := x0 + lipgloss.Width(strip)
 	assertDockWindowHits(t, m, 0, 1)
