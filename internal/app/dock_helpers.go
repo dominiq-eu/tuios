@@ -51,8 +51,8 @@ type DockLayout struct {
 	CustomLeft     int
 	CustomCenter   int
 	CustomRight    int
-	ItemGap        int        // Width between window entries in the current style
-	GroupChrome    int        // Trailing pad and outer caps, reserved once for grouped windows
+	ItemGap        int        // Width of the literal separator between window entries
+	GroupChrome    int        // Outer cap widths, reserved once for grouped pill windows
 	TruncatedCount int        // Number of items that don't fit
 	VisibleItems   []DockItem // Items that fit and should be displayed
 	ModeInfo       ModeInfo   // Mode display information for styling
@@ -1057,19 +1057,18 @@ func (m *OS) dockWindowItemGap() int {
 	return 1
 }
 
-// dockWindowGroupChrome reserves only the strip's trailing padding and its
-// optional outer caps. The leading padding is measured as part of each item.
+// dockWindowGroupChrome reserves one pair of outer caps for grouped pills.
+// Every window already contributes its own leading and trailing padding.
 func (m *OS) dockWindowGroupChrome() int {
 	cfg := m.dockWindowsConfig()
 	if !cfg.Grouped {
 		return 0
 	}
-	n := 1 // Trailing space after the final visible window
-	if !cfg.TabStyle().Flat() {
-		n += lipgloss.Width(m.Settings.GetDockWorkspaceCapLeft())
-		n += lipgloss.Width(m.Settings.GetDockWorkspaceCapRight())
+	if cfg.TabStyle().Flat() {
+		return 0
 	}
-	return n
+	return lipgloss.Width(m.Settings.GetDockWorkspaceCapLeft()) +
+		lipgloss.Width(m.Settings.GetDockWorkspaceCapRight())
 }
 
 // getDockItems lists the current workspace's panes. The default retains the
@@ -1123,20 +1122,12 @@ func (m *OS) getDockItems() []DockItem {
 			lipgloss.Width(label) +
 			lipgloss.Width(m.Settings.GetDockPillRightChar())
 		if styled {
-			if m.dockWindowsConfig().Grouped {
-				// Only the first segment gets leading padding; between
-				// segments the configured separator supplies all spacing.
-				// The trailing pad and optional caps are reserved once.
-				width = lipgloss.Width(strings.TrimSpace(label))
-				if number == 1 {
-					width++
-				}
-			} else if style.Flat() {
-				// Flat window entries are text, with no forced inner pad.
-				// Thus separator="" genuinely makes adjacent labels touch.
-				width = lipgloss.Width(strings.TrimSpace(label))
-			} else {
-				width = m.dockTabWidth(&style, strings.TrimSpace(label))
+			// The same " {format} " body is measured for every configured
+			// window. Grouping changes only how many pill caps are drawn.
+			width = lipgloss.Width(label)
+			if !m.dockWindowsConfig().Grouped && !style.Flat() {
+				width += lipgloss.Width(m.Settings.GetDockWorkspaceCapLeft()) +
+					lipgloss.Width(m.Settings.GetDockWorkspaceCapRight())
 			}
 		}
 		item.Label, item.Width = label, width
