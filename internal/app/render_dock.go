@@ -63,7 +63,7 @@ func workspacePill(label string, active, dragged bool, t *config.DockTabsConfig,
 }
 
 // workspacePillBody paints a pill segment without adding its own caps.
-// Grouped window strips reuse the same colors and emphasis as workspace pills.
+// Window entries reuse this painter, grouped or not.
 func workspacePillBody(content string, active, dragged bool, t *config.DockTabsConfig, pal overlay.Palette, ink color.Color) (string, color.Color) {
 	fg, ground := tabColor(t.InactiveFg, &pal), tabColor(t.InactiveBg, &pal)
 	if active {
@@ -109,16 +109,19 @@ func workspacePillBody(content string, active, dragged bool, t *config.DockTabsC
 // drawn in the default ink it would read as a bracket round the label. The caps
 // become blanks of the same width, so the strip's geometry and its hit boxes do
 // not change with the depth or the colours.
-func capTab(tab string, ground color.Color, s *config.Settings) string {
-	lc, rc := s.GetDockWorkspaceCapLeft(), s.GetDockWorkspaceCapRight()
-	if lc == "" && rc == "" {
-		return tab
+func tabCap(glyph string, ground color.Color) string {
+	if glyph == "" {
+		return ""
 	}
 	if ground == nil || overlay.IsNoColor(ground) {
-		return strings.Repeat(" ", lipgloss.Width(lc)) + tab + strings.Repeat(" ", lipgloss.Width(rc))
+		return strings.Repeat(" ", lipgloss.Width(glyph))
 	}
-	caps := lipgloss.NewStyle().Foreground(ground)
-	return caps.Render(lc) + tab + caps.Render(rc)
+	return lipgloss.NewStyle().Foreground(ground).Render(glyph)
+}
+
+func capTab(tab string, ground color.Color, s *config.Settings) string {
+	return tabCap(s.GetDockWorkspaceCapLeft(), ground) + tab +
+		tabCap(s.GetDockWorkspaceCapRight(), ground)
 }
 
 // tabColor is a configured [dock.tabs] colour on the dock's palette, or nil
@@ -246,35 +249,13 @@ func dockWindowSeparatorText(separator, foreground, groupBackground string, grou
 	return style.Render(separator)
 }
 
-// groupedDockWindowSegment renders one clickable entry without individual caps.
-// Leading padding is part of the entry; gaps and the final padding are managed
-// by the strip, not the tab painter.
-func groupedDockWindowSegment(label string, first, active bool, t *config.DockTabsConfig, pal overlay.Palette) (string, color.Color) {
-	content := label
-	if first {
-		// Leading padding belongs to the group, not to every entry.
-		// An empty separator therefore adds zero columns between labels.
-		content = " " + label
-	}
+// dockWindowBody paints the same padded window segment regardless of grouping.
+// Only the strip composer decides which caps and separators surround it.
+func dockWindowBody(label string, active bool, t *config.DockTabsConfig, pal overlay.Palette) (string, color.Color) {
 	if t.Flat() {
-		return flatTabBodyContent(content, active, false, t, pal, nil)
+		return flatTabBodyContent(label, active, false, t, pal, nil)
 	}
-	return workspacePillBody(content, active, false, t, pal, nil)
-}
-
-// groupedDockWindowCap draws an end cap with the adjacent entry's background.
-// An unfilled flat entry falls back to Panel solely for its outer decoration.
-func groupedDockWindowCap(glyph string, ground color.Color, pal overlay.Palette) string {
-	if glyph == "" {
-		return ""
-	}
-	if ground == nil {
-		ground = pal.Panel
-	}
-	if overlay.IsNoColor(ground) {
-		return strings.Repeat(" ", lipgloss.Width(glyph))
-	}
-	return lipgloss.NewStyle().Foreground(ground).Render(glyph)
+	return workspacePillBody(label, active, false, t, pal, nil)
 }
 
 // dockTab renders one tab in whichever style [dock.tabs] asks for.
@@ -448,15 +429,12 @@ func (m *OS) renderDockString() (string, int) {
 
 			var chunk string
 			if m.dockWindowStyled() {
-				// Pill caps follow style: one pair for a grouped run, one
-				// pair per pill when ungrouped. Flat windows never have caps.
 				cfg := m.dockWindowsConfig()
 				style := cfg.TabStyle()
-				// Visible inactive panes stay readable; minimized ones have
-				// their own dim default and optional colour overrides.
-				minimized := window.Minimized
-				active := !minimized && windowIndex == m.FocusedWindow
-				if minimized {
+				// The same body painter serves every window, with its leading
+				// and trailing padding highlighted as part of the segment.
+				active := !window.Minimized && windowIndex == m.FocusedWindow
+				if window.Minimized {
 					style.InactiveFg = cfg.MinimizedFg
 					if style.InactiveFg == "" {
 						style.InactiveFg = "dim"
@@ -466,8 +444,6 @@ func (m *OS) renderDockString() (string, int) {
 					}
 				}
 				if cfg.Grouped && style.Flat() && style.InactiveBg == "" {
-					// A grouped flat run has a shared panel ground, unlike
-					// separate flat text entries with no fill.
 					style.InactiveBg = "panel"
 				}
 				if itemNumber > 1 {
@@ -476,29 +452,20 @@ func (m *OS) renderDockString() (string, int) {
 					dockItemsStr.WriteString(gap)
 					relX += lipgloss.Width(gap)
 				}
-				if cfg.Grouped {
-					var ground color.Color
-					chunk, ground = groupedDockWindowSegment(strings.TrimSpace(dockItem.Label),
-						itemNumber == 1, active, &style, pal)
-					if itemNumber == 1 && !style.Flat() {
-						chunk = groupedDockWindowCap(m.Settings.GetDockWorkspaceCapLeft(), ground, pal) + chunk
-					}
-					if itemNumber == len(layout.VisibleItems) {
-						// End the group at its last *visible* window, even if
-						// other windows are hidden behind the overflow marker.
-						chunk += sidebarStyle(ground, nil).Render(" ")
-						if !style.Flat() {
-							chunk += groupedDockWindowCap(m.Settings.GetDockWorkspaceCapRight(), ground, pal)
+
+				body, ground := dockWindowBody(dockItem.Label, active, &style, pal)
+				chunk = body
+				if !style.Flat() {
+					if cfg.Grouped {
+						if itemNumber == 1 {
+							chunk = tabCap(m.Settings.GetDockWorkspaceCapLeft(), ground) + chunk
 						}
+						if itemNumber == len(layout.VisibleItems) {
+							chunk += tabCap(m.Settings.GetDockWorkspaceCapRight(), ground)
+						}
+					} else {
+						chunk = capTab(chunk, ground, &m.Settings)
 					}
-				} else if style.Flat() {
-					// Individual flat window labels have no implicit padding:
-					// separator="" must visibly join adjacent labels.
-					chunk, _ = flatTabBodyContent(strings.TrimSpace(dockItem.Label),
-						active, false, &style, pal, nil)
-				} else {
-					chunk = m.dockTab(&style, strings.TrimSpace(dockItem.Label),
-						active, false, false, pal)
 				}
 			} else {
 				// The unconfigured component retains the exact historical
