@@ -121,7 +121,7 @@ show         = "all"              # minimized (default) | all
 style        = "pill"             # pill (default) | flat
 grouped      = true               # one continuous strip (default: false)
 format       = "{index}: {cwd}"   # {cwd} is the current directory name
-separator    = " "                # "" joins labels with no added gap
+separator    = ""                 # no extra gap beyond each entry padding
 active_bg    = "accent"
 inactive_fg  = "text"
 minimized_fg = "dim"
@@ -138,10 +138,14 @@ styled separately from other unfocused windows.
 `style = "pill"` draws rounded ends following
 `[appearance] dock_pill_caps = true`. Ungrouped pills each get a pair of
 caps; a grouped pill run gets just one pair around the whole strip.
-`style = "flat"` never gets caps. Flat ungrouped labels have no automatic
-inner padding, so `separator = ""` can display `12`; grouped flat entries
-share a panel background and a single outer pad. No extra `caps` option is
-needed under `[dock.windows]` (the workspace-tab `caps` option is separate).
+`style = "flat"` never gets caps; grouped flat entries share a panel
+background. Every entry uses the same padded body `" " + {format} + " "`
+regardless of style or grouping, and the padding carries the entry's
+focus/minimized colors. With `separator = ""`, three grouped labels render
+as `🯩 1  2  3 🯫` in pill style or ` 1  2  3 ` in flat style.
+A custom separator is inserted literally between the padded bodies.
+No extra `caps` option is needed under `[dock.windows]`
+(the workspace-tab `caps` option is separate).
 
 The `format` placeholders are `{index}`, `{title}` (the same resolved
 title as the sidebar's terminals section), and `{cwd}` (basename of the
